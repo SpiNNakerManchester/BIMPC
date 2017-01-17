@@ -130,6 +130,7 @@ class Visualiser(object):
                 except IndexError as e:
                     print("Packet contains invalid pixels:",
                           vision_payload, x, y, c)
+                    self.image_data[:-1, :] = 0
 
                 # Create masks to select score events and count them
                 num_score_up_events = np.sum(payload_value == SpecialEvent.score_up)
