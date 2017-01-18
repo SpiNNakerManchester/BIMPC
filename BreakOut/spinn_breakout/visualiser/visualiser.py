@@ -146,7 +146,10 @@ class Visualiser(object):
                     self.score_text.set_text("%u" % self.score)
 
         # Set image data
-        self.image.set_array(self.image_data)
+        try:
+            self.image.set_array(self.image_data)
+        except NameError:
+            pass
 
         # Return list of artists which we have updated
         # **YUCK** order of these dictates sort order

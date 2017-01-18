@@ -320,6 +320,7 @@ static bool initialize(uint32_t *timer_period)
 
 void timer_callback(uint ticks, uint dummy)
 {
+  use(dummy);
   // If a fixed number of simulation ticks are specified and these have passed
   // **NOTE** ticks starts at 1!
   if (!infinite_run && (ticks - 1) >= simulation_ticks)
@@ -353,10 +354,11 @@ void timer_callback(uint ticks, uint dummy)
 
 void mc_packet_received_callback(uint key, uint payload)
 {
+  use(payload);
   log_debug("Packet received %08x", key);
 
   // Left
-  if(key & 0x1)
+  if(key & KEY_LEFT)
   {
     keystate |= KEY_LEFT;
   }
@@ -382,7 +384,7 @@ void c_main(void)
   }
 
   init_frame();
-  keystate = 0;
+  keystate = 0; // IDLE
   tick_in_frame = 0;
 
   // Set timer tick (in microseconds)
