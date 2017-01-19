@@ -55,3 +55,9 @@ def get_paddle_left_neuron_id():
 
 def get_paddle_right_neuron_id():
     return KEY_RIGHT
+
+
+def create_pools(original_vector, pool_size):
+    p = np.arange(original_vector.size)
+    pooling_vector = p.reshape(p.size//pool_size, pool_size)
+    return pooling_vector
