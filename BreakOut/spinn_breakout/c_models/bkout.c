@@ -108,6 +108,8 @@ static uint32_t simulation_ticks = 0;
 //! How many ticks until next frame
 static uint32_t tick_in_frame = 0;
 
+uint32_t left_key_count, right_key_count;
+
 //----------------------------------------------------------------------------
 // Inline functions
 //----------------------------------------------------------------------------
@@ -169,6 +171,11 @@ static void update_frame ()
   // Cache old bat position
   const int old_xbat = x_bat;
 
+  if (left_key_count > right_key_count)
+    keystate |= KEY_LEFT;
+  else if (right_key_count > left_key_count)
+    keystate |= KEY_RIGHT;
+
   // Update bat and clamp
   if (keystate & KEY_LEFT && --x_bat < 0)
   {
@@ -181,6 +188,8 @@ static void update_frame ()
 
   // Clear keystate
   keystate = 0;
+  left_key_count = 0;
+  right_key_count = 0;
 
   // If bat's moved
   if (old_xbat != x_bat)
@@ -360,12 +369,12 @@ void mc_packet_received_callback(uint key, uint payload)
   // Left
   if(key & KEY_LEFT)
   {
-    keystate |= KEY_LEFT;
+    left_key_count++;
   }
   // Right
   else
   {
-    keystate |= KEY_RIGHT;
+    right_key_count++;
   }
 }
 
