@@ -31,7 +31,7 @@
 #define OUT_OF_PLAY 100
 
 // Frame delay (ms)
-#define FRAME_DELAY 20
+#define FRAME_DELAY 14//20
 
 // ball position and velocity scale factor
 #define FACT 16
@@ -324,6 +324,7 @@ void timer_callback(uint ticks, uint dummy)
   // **NOTE** ticks starts at 1!
   if (!infinite_run && (ticks - 1) >= simulation_ticks)
   {
+    spin1_pause();
     return;
   }
   // Otherwise

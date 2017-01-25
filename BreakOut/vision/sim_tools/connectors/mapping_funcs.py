@@ -13,7 +13,7 @@ def row_col_to_input(row, col, is_on_input, width, height, row_bits):
     return idx
 
 
-def row_col_to_input_breakout(row, col, is_on_input):
+def row_col_to_input_breakout(row, col, is_on_input, x_res=160):
     row_bits = np.uint32(8)
     idx = np.uint32(0)
     
@@ -28,14 +28,8 @@ def row_col_to_input_breakout(row, col, is_on_input):
     return idx
 
 
-def row_col_to_input_subsamp(self, row, col, is_on_input, row_bits):
+def row_col_to_input_subsamp(row, col,is_on_input,x_res):
     idx = np.uint32(0)
-
-    if is_on_input:
-        idx = idx | 1
-
-    idx = idx | (row << 1)
-    idx = idx | (col << (row_bits + 1))
-
+    idx = row*x_res + col
     return idx
                 
