@@ -130,6 +130,7 @@ class Visualiser(object):
                 except IndexError as e:
                     print("Packet contains invalid pixels:",
                           vision_payload, x, y, c)
+                    self.image_data[:-1, :] = 0
 
                 # Create masks to select score events and count them
                 num_score_up_events = np.sum(payload_value == SpecialEvent.score_up)
@@ -145,7 +146,10 @@ class Visualiser(object):
                     self.score_text.set_text("%u" % self.score)
 
         # Set image data
-        self.image.set_array(self.image_data)
+        try:
+            self.image.set_array(self.image_data)
+        except NameError:
+            pass
 
         # Return list of artists which we have updated
         # **YUCK** order of these dictates sort order
