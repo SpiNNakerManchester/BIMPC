@@ -22,6 +22,7 @@ VERT = 1
 
 
 #---------- From NE15 ----------#
+# https://github.com/NEvision/NE15
 
 def nextTime(rateParameter):
     '''Helper function to Poisson generator (from NE15)
@@ -195,12 +196,14 @@ def vertical(num_neurons, spk_time):
 
 
 def diagonal(num_neurons, time_step, 
-             directions={HORZ: LEFT_TO_RIGHT, VERT: TOP_TO_BOTTOM}):
+             directions={HORZ: LEFT_TO_RIGHT, VERT: TOP_TO_BOTTOM},
+             start_time=0):
     time_step = float64(time_step)
     # print(directions[HORZ], directions[VERT])
     spike_array = [[] for i in range(num_neurons)]
 
-    t = 0 if directions[HORZ] == LEFT_TO_RIGHT else time_step*(num_neurons - 1)
+    t = start_time if directions[HORZ] == LEFT_TO_RIGHT \
+                   else start_time + time_step*(num_neurons - 1)
     t = float64(t)
     dt = time_step if directions[HORZ] == LEFT_TO_RIGHT else -time_step
     dt = float64(dt)
@@ -292,8 +295,11 @@ def line(num_neurons, start_time, end_time, start_neuron, end_neuron, time_step=
 
 
 
-def random_pattern(num_neurons, start_time, end_time):
-    r_seed = np.uint32(time.time()*100000)
+def random_pattern(num_neurons, start_time, end_time, time_step=1., seed=None):
+    if seed is None:
+        r_seed = np.uint32(time.time()*100000)
+    else:
+        r_seed = seed
     np.random.seed( r_seed )
     spikes = [[] for i in range(num_neurons)]
     time_range = end_time - start_time

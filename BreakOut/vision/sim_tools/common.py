@@ -51,6 +51,8 @@ ROW, COL = 0, 1
 OFF, ON = 0, 1
 D2R = np.pi/180.
 R2D = 180./np.pi
+MERGED, SPLIT = 0, 1
+dvs_modes = ['merged', 'split']
 
 def deg2rad(d):
     return D2R*d
@@ -69,3 +71,11 @@ def conv2one(mat):
 def sum2zero(mat):
   return mat - np.mean(mat)
 
+def seed_rand(seed=None):
+    # if seed is None:
+        # time.sleep(0.001)
+        # seed = np.uint32(time.time()*(10*15))
+    np.random.seed(seed)
+
+def subsamp_size(start, end, step):
+    return ( (end - start - 1)//step ) + 1

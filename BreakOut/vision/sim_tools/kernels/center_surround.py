@@ -1,5 +1,12 @@
 from ..common import *
 
+def cs_3x3():
+    s2 = 1/np.sqrt(2)
+    c = 4.*( 1 + s2 )
+    cs = np.array([[-s2, -1, -s2], [-1, c, -1], [-s2, -1, -s2]])
+    
+    return conv2one( cs )
+
 
 def center_surround_kernel(width=3, ctr_sigma=0.8, sigma_mult=6.7, on_center=True):
     '''Compute the convolution kernel for center-surround behaviour,
@@ -11,17 +18,20 @@ def center_surround_kernel(width=3, ctr_sigma=0.8, sigma_mult=6.7, on_center=Tru
 
        :return cs_kernel: center-surround kernel
     '''
+    
     cs_kernel = None
-  
-    ctr = gaussian2D(width, ctr_sigma)
-    srr = gaussian2D(width, sigma_mult*ctr_sigma)
-    if on_center:
-      cs_kernel = ctr - srr
+    if width == 3:
+        return cs_3x3()[0]
     else:
-      cs_kernel = srr - ctr
+        ctr = gaussian2D(width, ctr_sigma)
+        srr = gaussian2D(width, sigma_mult*ctr_sigma)
+        if on_center:
+            cs_kernel = ctr - srr
+        else:
+            cs_kernel = srr - ctr
 
-    cs_kernel = sum2zero(cs_kernel)
-    cs_kernel, w = conv2one(cs_kernel)
+        cs_kernel = sum2zero(cs_kernel)
+        cs_kernel = conv2one(cs_kernel)[0]
     
     return cs_kernel
 
@@ -46,31 +56,28 @@ def gaussian2D(width, sigma):
     return gauss
 
 
-def split_center_surround_kernel(width=3, ctr_sigma=0.8, sigma_mult=6.7, on_center=True):
+def split_center_surround_kernel(width=3, ctr_sigma=0.8, sigma_mult=6.7):
     
     cs_kernel = None
-  
-    ctr = gaussian2D(width, ctr_sigma)
-    ctr, w = normalize(ctr)
-    
-    srr = gaussian2D(width, sigma_mult*ctr_sigma)
-    srr, w = normalize(srr)
-    
-    if on_center:
+    if width == 3:
+        cs_kernel, w = cs_3x3()
+        s2 = 1/np.sqrt(2)
+        c = 4.*( 1 + s2 )
+        ctr = np.array([[0, 0, 0], [0, c, 0], [0, 0, 0]])*w
+        srr = np.array([[-s2, -1, -s2], [-1, 0, -1], [-s2, -1, -s2]])*w
+    else:
+        ctr = gaussian2D(width, ctr_sigma)
+        ctr, w = normalize(ctr)
+        
+        srr = gaussian2D(width, sigma_mult*ctr_sigma)
+        srr, w = normalize(srr)
+        
         cs_kernel = ctr - srr
-    else:
-        cs_kernel = srr - ctr
-
-    cs_kernel, w = conv2one(cs_kernel)
-    
-    ctr *= w
-    srr *= w
-  
-    if on_center:
+        cs_kernel, w = conv2one(cs_kernel)
+        
+        ctr *= w
+        srr *= w
         srr = -srr
-        return [ctr, srr] #excitatory first, inhibitory later
-    else:
-        ctr = -ctr
-        return [srr, ctr]
+        
+    return [ctr, srr] #excitatory first, inhibitory later
 
-    

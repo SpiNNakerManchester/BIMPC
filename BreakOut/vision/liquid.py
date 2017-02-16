@@ -189,12 +189,6 @@ class Liquid():
                                       # synapse_dynamics=syn_dyn, \
                                       label=loc2lbl(self.coords, 'i2e'))
 
-        # i2i = sim.FromListConnector(self.i2i_conns)
-        # projs['i2i'] = sim.Projection(self.pops['inh'], self.pops['inh'], \
-                                      # i2i, target='inhibitory', \
-                                      synapse_dynamics=syn_dyn, \
-                                      # label=loc2lbl(self.coords, 'i2i'))
-
         self.projs = projs
 
 
