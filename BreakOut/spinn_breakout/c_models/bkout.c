@@ -108,6 +108,8 @@ static uint32_t simulation_ticks = 0;
 //! How many ticks until next frame
 static uint32_t tick_in_frame = 0;
 
+uint32_t left_key_count, right_key_count;
+
 //----------------------------------------------------------------------------
 // Inline functions
 //----------------------------------------------------------------------------
@@ -169,6 +171,11 @@ static void update_frame ()
   // Cache old bat position
   const int old_xbat = x_bat;
 
+  if (left_key_count > right_key_count)
+    keystate |= KEY_LEFT;
+  else if (right_key_count > left_key_count)
+    keystate |= KEY_RIGHT;
+
   // Update bat and clamp
   if (keystate & KEY_LEFT && --x_bat < 0)
   {
@@ -181,6 +188,8 @@ static void update_frame ()
 
   // Clear keystate
   keystate = 0;
+  left_key_count = 0;
+  right_key_count = 0;
 
   // If bat's moved
   if (old_xbat != x_bat)
@@ -320,6 +329,7 @@ static bool initialize(uint32_t *timer_period)
 
 void timer_callback(uint ticks, uint dummy)
 {
+  use(dummy);
   // If a fixed number of simulation ticks are specified and these have passed
   // **NOTE** ticks starts at 1!
   if (!infinite_run && (ticks - 1) >= simulation_ticks)
@@ -354,17 +364,18 @@ void timer_callback(uint ticks, uint dummy)
 
 void mc_packet_received_callback(uint key, uint payload)
 {
+  use(payload);
   log_debug("Packet received %08x", key);
 
   // Left
-  if(key & 0x1)
+  if(key & KEY_LEFT)
   {
-    keystate |= KEY_LEFT;
+    left_key_count++;
   }
   // Right
   else
   {
-    keystate |= KEY_RIGHT;
+    right_key_count++;
   }
 }
 
@@ -383,7 +394,7 @@ void c_main(void)
   }
 
   init_frame();
-  keystate = 0;
+  keystate = 0; // IDLE
   tick_in_frame = 0;
 
   // Set timer tick (in microseconds)
