@@ -4,7 +4,7 @@ To instantiate a retina object:
 import copy
 from vision.retina import Retina, dvs_modes, MERGED
 ### MERGED means neuron id = [x|y|p]
-import vision.default_config as default_config
+import vision.default_config
 from pyNN import spiNNaker as sim
 
 ### retina configuration

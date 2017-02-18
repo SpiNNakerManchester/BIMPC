@@ -2,6 +2,7 @@ import numpy as np
 import pylab
 from ..pattern.pattern_generator import out_to_spike_array
 import matplotlib.animation as animation
+import cv2
 
 SRC, DST, W, DLY = 0, 1, 2, 3
 X, Y, Z = 0, 1, 2

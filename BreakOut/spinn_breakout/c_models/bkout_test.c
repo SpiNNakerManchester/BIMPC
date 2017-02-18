@@ -24,17 +24,26 @@
 //----------------------------------------------------------------------------
 // **TODO** many of these magic numbers should be passed from Python
 // Game dimension constants
-#define GAME_WIDTH  160
-#define GAME_HEIGHT 128
+#define RES_DIV 4
+#define GAME_WIDTH  (160/RES_DIV)
+#define GAME_HEIGHT (128/RES_DIV)
+
+#define COLOUR_BITS 1
+#define WIDTH_BITS  6
+#define HEIGHT_BITS 6
+#define HORIZ_SHIFT (HEIGHT_BITS + COLOUR_BITS)
+#define VERT_SHIFT  COLOUR_BITS
+#define PIXELS_PER_WORD 8 //8*[4-bit colour] = 32-bit
+
 
 // Ball outof play time (frames)
 #define OUT_OF_PLAY 100
 
 // Frame delay (ms)
-#define FRAME_DELAY 14//20
+#define FRAME_DELAY 20
 
 // ball position and velocity scale factor
-#define FACT 16
+#define FACT 2
 
 //----------------------------------------------------------------------------
 // Enumerations
@@ -75,17 +84,17 @@ typedef enum
 //----------------------------------------------------------------------------
 // initial ball coordinates in fixed-point
 static int x = (GAME_WIDTH / 4) * FACT;
-static int y = (GAME_HEIGHT / 2) * FACT;
+static int y = (GAME_HEIGHT / 4) * FACT;
 
 // initial ball velocity in fixed-point
 static int u = 1 * FACT;
 static int v = -1 * FACT;
 
 // bat LHS x position
-static int x_bat   = 40;
+static int x_bat   = 40/RES_DIV;
 
 // bat length in pixels
-static int bat_len = 16;
+static int bat_len = 16/RES_DIV;
 
 // frame buffer: 160 x 128 x 4 bits: [hard/soft, R, G, B]
 static int frame_buff[GAME_WIDTH / 8][GAME_HEIGHT];
@@ -108,8 +117,6 @@ static uint32_t simulation_ticks = 0;
 //! How many ticks until next frame
 static uint32_t tick_in_frame = 0;
 
-uint32_t left_key_count, right_key_count;
-
 //----------------------------------------------------------------------------
 // Inline functions
 //----------------------------------------------------------------------------
@@ -128,16 +135,20 @@ static inline void add_score_down_event()
 static inline void add_event(int i, int j, colour_t col)
 {
   const uint32_t colour_bit = (col == COLOUR_BACKGROUND) ? 0 : 1;
-  const uint32_t spike_key = key | (SPECIAL_EVENT_MAX + (i << 9) + (j << 1) + colour_bit);
+  const uint32_t spike_key = key | (SPECIAL_EVENT_MAX + (i << HORIZ_SHIFT) \
+                                    + (j << VERT_SHIFT) + colour_bit);
 
   spin1_send_mc_packet(spike_key, 0, NO_PAYLOAD);
+  // spin1_delay_us(500);
+  // spin1_send_mc_packet(spike_key, 0, NO_PAYLOAD);
   log_debug("%d, %d, %u, %08x", i, j, col, spike_key);
 }
 
 // gets pixel colour from within word
 static inline colour_t get_pixel_col (int i, int j)
 {
-  return (colour_t)(frame_buff[i / 8][j] >> ((i % 8)*4) & 0xF);
+  return (colour_t)(frame_buff[i / PIXELS_PER_WORD][j] >> \
+                   ((i % PIXELS_PER_WORD)*4) & 0xF);
 }
 
 // inserts pixel colour within word
@@ -145,7 +156,9 @@ static inline void set_pixel_col (int i, int j, colour_t col)
 {
     if (col != get_pixel_col(i, j))
     {
-      frame_buff[i / 8][j] = (frame_buff[i / 8][j] & ~(0xF << ((i % 8) * 4))) | ((int)col << ((i % 8)*4));
+      frame_buff[i / PIXELS_PER_WORD][j] = (frame_buff[i / PIXELS_PER_WORD][j] & \
+                                             ~(0xF << ((i % PIXELS_PER_WORD) * 4))) \
+                                            | ((int)col << ((i % PIXELS_PER_WORD)*4));
       add_event (i, j, col);
     }
 }
@@ -156,7 +169,7 @@ static inline void set_pixel_col (int i, int j, colour_t col)
 // initialise frame buffer to blue
 static void init_frame ()
 {
-  for (int i=0; i<(GAME_WIDTH/8); i++)
+  for (int i=0; i<(GAME_WIDTH/PIXELS_PER_WORD); i++)
   {
     for (int j=0; j<GAME_HEIGHT; j++)
     {
@@ -171,11 +184,6 @@ static void update_frame ()
   // Cache old bat position
   const int old_xbat = x_bat;
 
-  if (left_key_count > right_key_count)
-    keystate |= KEY_LEFT;
-  else if (right_key_count > left_key_count)
-    keystate |= KEY_RIGHT;
-
   // Update bat and clamp
   if (keystate & KEY_LEFT && --x_bat < 0)
   {
@@ -188,8 +196,6 @@ static void update_frame ()
 
   // Clear keystate
   keystate = 0;
-  left_key_count = 0;
-  right_key_count = 0;
 
   // If bat's moved
   if (old_xbat != x_bat)
@@ -329,7 +335,6 @@ static bool initialize(uint32_t *timer_period)
 
 void timer_callback(uint ticks, uint dummy)
 {
-  use(dummy);
   // If a fixed number of simulation ticks are specified and these have passed
   // **NOTE** ticks starts at 1!
   if (!infinite_run && (ticks - 1) >= simulation_ticks)
@@ -364,18 +369,18 @@ void timer_callback(uint ticks, uint dummy)
 
 void mc_packet_received_callback(uint key, uint payload)
 {
-  use(payload);
   log_debug("Packet received %08x", key);
+  // log_info("Packet received %08x", key);
 
   // Left
-  if(key & KEY_LEFT)
+  if(key & 0x1)
   {
-    left_key_count++;
+    keystate |= KEY_LEFT;
   }
   // Right
   else
   {
-    right_key_count++;
+    keystate |= KEY_RIGHT;
   }
 }
 
@@ -394,7 +399,7 @@ void c_main(void)
   }
 
   init_frame();
-  keystate = 0; // IDLE
+  keystate = 0;
   tick_in_frame = 0;
 
   // Set timer tick (in microseconds)
