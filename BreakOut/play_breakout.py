@@ -8,7 +8,7 @@ from vision.retina import Retina, dvs_modes, MERGED
 import vision.default_config as default_config
 from vision.sim_tools.connectors.mapping_funcs import row_col_to_input_breakout
 import spynnaker_external_devices_plugin.pyNN as ex
-from spynnaker_external_devices_plugin.pyNN.connections.\
+from spynnaker_external_devices_plugin.pyNN.connections. \
     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
 from vision.sim_tools.connectors.direction_connectors import direction_connection_angle, subsample_connection, \
     paddle_connection
@@ -56,7 +56,6 @@ cell_params_lif = {'cm': 0.25,
 rate_weight = 1.5
 rate_delay = 16.
 
-
 # increase max_delay for motion sensing
 sim.setup(timestep=1., max_delay=144., min_delay=1.)
 
@@ -91,11 +90,9 @@ if 'direction' in ret_conf:
 if 'gabor' in ret_conf:
     del ret_conf['gabor']
 
-
 mode = dvs_modes[MERGED]
 retina = Retina(sim, breakout_pop, X_RESOLUTION, Y_RESOLUTION,
                 mode, cfg=ret_conf)
-
 
 # ----------------------------------------
 # Motion detection region
@@ -167,57 +164,61 @@ angle = 8
 dir_delay = int(pt * 1000)
 
 # TODO: make these non-uniform distributions, larger weights in the centre of image?
-[Connections_e_on, _], [Connections_e_off, _] = direction_connection_angle("E", \
-                                                                           angle,
-                                                                           dist,
-                                                                           X_RESOLUTION, 1,
-                                                                           row_col_to_input_subsamp,
-                                                                           0, 1,
-                                                                           2.,
-                                                                           1.,
-                                                                           delay_func=lambda dist: 1 + (
-                                                                           dir_delay * (dist)),
-                                                                           weight=sub_direction_weight,
-                                                                           map_width=X_RESOLUTION)
+[Connections_e_on, _], [Connections_e_off, _] = direction_connection_angle(
+    "E", \
+    angle,
+    dist,
+    X_RESOLUTION, 1,
+    row_col_to_input_subsamp,
+    0, 1,
+    2.,
+    1.,
+    delay_func=lambda dist: 1 + (
+        dir_delay * (dist)),
+    weight=sub_direction_weight,
+    map_width=X_RESOLUTION)
 
-[Connections_w_on, _], [Connections_w_off, _] = direction_connection_angle("W", \
-                                                                           angle,
-                                                                           dist,
-                                                                           X_RESOLUTION, 1,
-                                                                           row_col_to_input_subsamp,
-                                                                           0, 1,
-                                                                           2.,
-                                                                           1.,
-                                                                           delay_func=lambda dist: 1 + (
-                                                                           dir_delay * (dist)),
-                                                                           weight=sub_direction_weight,
-                                                                           map_width=X_RESOLUTION)
+[Connections_w_on, _], [Connections_w_off, _] = direction_connection_angle(
+    "W", \
+    angle,
+    dist,
+    X_RESOLUTION, 1,
+    row_col_to_input_subsamp,
+    0, 1,
+    2.,
+    1.,
+    delay_func=lambda dist: 1 + (
+        dir_delay * (dist)),
+    weight=sub_direction_weight,
+    map_width=X_RESOLUTION)
 
-[Connections_n_on, _], [Connections_n_off, _] = direction_connection_angle("N", \
-                                                                           angle,
-                                                                           dist,
-                                                                           1, Y_RESOLUTION - 1,
-                                                                           row_col_to_input_subsamp,
-                                                                           0, 1,
-                                                                           2.,
-                                                                           1.,
-                                                                           delay_func=lambda dist: 1 + (
-                                                                           dir_delay * (dist)),
-                                                                           weight=sub_direction_weight,
-                                                                           map_width=1)
+[Connections_n_on, _], [Connections_n_off, _] = direction_connection_angle(
+    "N", \
+    angle,
+    dist,
+    1, Y_RESOLUTION - 1,
+    row_col_to_input_subsamp,
+    0, 1,
+    2.,
+    1.,
+    delay_func=lambda dist: 1 + (
+        dir_delay * (dist)),
+    weight=sub_direction_weight,
+    map_width=1)
 
-[Connections_s_on, _], [Connections_s_off, _] = direction_connection_angle("S", \
-                                                                           angle,
-                                                                           dist,
-                                                                           1, Y_RESOLUTION - 1,
-                                                                           row_col_to_input_subsamp,
-                                                                           0, 1,
-                                                                           2.,
-                                                                           1.,
-                                                                           delay_func=lambda dist: 1 + (
-                                                                           dir_delay * (dist)),
-                                                                           weight=sub_direction_weight,
-                                                                           map_width=1)
+[Connections_s_on, _], [Connections_s_off, _] = direction_connection_angle(
+    "S", \
+    angle,
+    dist,
+    1, Y_RESOLUTION - 1,
+    row_col_to_input_subsamp,
+    0, 1,
+    2.,
+    1.,
+    delay_func=lambda dist: 1 + (
+        dir_delay * (dist)),
+    weight=sub_direction_weight,
+    map_width=1)
 
 # generate paddle to inline connections
 paddle_inline_east_connections = []
@@ -293,6 +294,13 @@ sim.Projection(inline_west_pop, key_input_left, sim.AllToAllConnector(weights=10
 # Reinforcement learning region
 # ----------------------------------------
 
+# TODO Setup Actor and Critic populations
+actor = sim.Population(1000, cellclass=sim.IF_curr_exp, cellparams=cell_params_lif)
+critic = sim.Population(1000, cellclass=sim.IF_curr_exp, cellparams=cell_params_lif)
+
+# TODO State inputs: from CNN and motion networks to Actor and Critic populations
+
+# TODO Learning signal connection
 
 # ----------------------------------------
 # End region
@@ -302,7 +310,6 @@ sim.run(None)
 
 # Show visualiser (blocking)
 visualiser.show()
-
 
 # End simulation
 sim.end()
