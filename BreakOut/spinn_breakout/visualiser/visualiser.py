@@ -32,7 +32,7 @@ class Visualiser(object):
     # How many bits are used to represent colour
     colour_bits = 1
 
-    def __init__(self, udp_port, key_input_connection,
+    def __init__(self, udp_port, key_input_connection=None,
                  x_res=160, y_res=128, x_bits=8, y_bits=8):
         # Reset input state
         self.input_state = InputState.idle
@@ -97,7 +97,7 @@ class Visualiser(object):
     # ------------------------------------------------------------------------
     def _update(self, frame):
         # If state isn't idle, send spike to key input
-        if self.input_state != InputState.idle:
+        if self.input_state != InputState.idle and self.key_input_connection:
             self.key_input_connection.send_spike("key_input", self.input_state)
 
         # Read all datagrams received during last frame
