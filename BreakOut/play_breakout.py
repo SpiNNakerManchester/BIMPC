@@ -65,16 +65,17 @@ ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT)
 
 # Create spike injector to inject keyboard input into simulation
 # key_input = sim.Population(2, ex.SpikeInjector, {"port": 12367}, label="key_input")
-key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["key_input"])
-
-# Connect key spike injector to breakout population
+# key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["key_input"])
+#
+# # Connect key spike injector to breakout population
 # sim.Projection(key_input, breakout_pop, sim.OneToOneConnector(weights=2))
-
+#
 # Create visualiser
 visualiser = spinn_breakout.Visualiser(
-    UDP_PORT, key_input_connection,
+    UDP_PORT, key_input_connection=None,
     x_res=X_RESOLUTION, y_res=Y_RESOLUTION,
     x_bits=X_BITS, y_bits=Y_BITS)
+
 # ----------------------------------------
 # Retina region
 # ----------------------------------------
@@ -83,15 +84,15 @@ visualiser = spinn_breakout.Visualiser(
 ret_conf = copy.deepcopy(default_config.defaults_retina)
 ret_conf['input_mapping_func'] = row_col_to_input_breakout
 ret_conf['row_bits'] = 8
-# (optional) to disable motion sensing
+### (optional) to disable motion sensing
 if 'direction' in ret_conf:
-    del ret_conf['direction']
-# (optional) to disable orientation sensing
+    ret_conf['direction'] = False
+### (optional) to disable orientation sensing
 if 'gabor' in ret_conf:
-    del ret_conf['gabor']
+    ret_conf['gabor'] = False
 
 mode = dvs_modes[MERGED]
-retina = Retina(sim, breakout_pop, X_RESOLUTION, Y_RESOLUTION,
+retina = Retina(sim, breakout_pop, X_RESOLUTION // 4, Y_RESOLUTION // 4,
                 mode, cfg=ret_conf)
 
 # ----------------------------------------
@@ -276,20 +277,14 @@ sim.Projection(rate_generator, inline_west_pop, sim.FromListConnector(paddle_inl
 sim.Projection(e_on_pop, inline_east_pop, sim.OneToOneConnector(weights=inline_direction_weight))
 sim.Projection(w_on_pop, inline_west_pop, sim.OneToOneConnector(weights=inline_direction_weight))
 
-# inhibitory north to inline connections
-Connections_n_inh = []
-for i in range(Y_RESOLUTION - 1):
-    for j in range(X_RESOLUTION):
-        inh_weight = inline_direction_weight * -1
-        Connections_n_inh.append((i, j, inh_weight, 1.))
-
-        # sim.Projection(n_on_pop,inline_east_pop, sim.FromListConnector(Connections_n_inh), target='inhibitory')
-# sim.Projection(n_on_pop,inline_west_pop, sim.FromListConnector(Connections_n_inh), target='inhibitory')
-
 # inline east to key input right population
 sim.Projection(inline_east_pop, key_input_right, sim.AllToAllConnector(weights=10.))
 # inline west to key input left population
 sim.Projection(inline_west_pop, key_input_left, sim.AllToAllConnector(weights=10.))
+
+#key input right and left to key input
+sim.Projection(key_input_right, key_input,sim.FromListConnector(keyright_connections))
+sim.Projection(key_input_left, key_input,sim.FromListConnector(keyleft_connections))
 # ----------------------------------------
 # Reinforcement learning region
 # ----------------------------------------
