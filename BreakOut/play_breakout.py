@@ -6,15 +6,15 @@ import copy
 from vision.retina import Retina, dvs_modes, MERGED
 ### MERGED means neuron id = [x|y|p]
 import vision.default_config as default_config
-from vision.sim_tools.connectors.mapping_funcs import row_col_to_input_breakout
 import spynnaker_external_devices_plugin.pyNN as ex
-from spynnaker_external_devices_plugin.pyNN.connections. \
-    spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
 from vision.sim_tools.connectors.direction_connectors import direction_connection_angle, subsample_connection, \
     paddle_connection
 from vision.sim_tools.connectors.mapping_funcs import row_col_to_input_breakout, row_col_to_input_subsamp
 import spinn_breakout
 import numpy as np
+from breakout_utils.dealing_with_neuron_ids import get_reward_neuron_id, get_punishment_neuron_id
+from pacman.model.constraints.partitioner_constraints.partitioner_maximum_size_constraint import \
+    PartitionerMaximumSizeConstraint
 
 # ----------------------------------------
 # Breakout region
@@ -41,10 +41,11 @@ div = 2
 UDP_PORT = 17893
 
 # cell parameters needed for 50Hz rate generator
+
 cell_params_lif = {'cm': 0.25,
                    'i_offset': 0.0,
                    'tau_m': 20.0,
-                   'tau_refrac': 5.0,
+                   'tau_refrac': 2.0,
                    'tau_syn_E': 5.0,
                    'tau_syn_I': 5.0,
                    'v_reset': -70.0,
@@ -80,20 +81,20 @@ visualiser = spinn_breakout.Visualiser(
 # Retina region
 # ----------------------------------------
 
-# retina configuration
-ret_conf = copy.deepcopy(default_config.defaults_retina)
-ret_conf['input_mapping_func'] = row_col_to_input_breakout
-ret_conf['row_bits'] = 8
-### (optional) to disable motion sensing
-if 'direction' in ret_conf:
-    ret_conf['direction'] = False
-### (optional) to disable orientation sensing
-if 'gabor' in ret_conf:
-    ret_conf['gabor'] = False
-
-mode = dvs_modes[MERGED]
-retina = Retina(sim, breakout_pop, X_RESOLUTION // 4, Y_RESOLUTION // 4,
-                mode, cfg=ret_conf)
+# # retina configuration
+# ret_conf = copy.deepcopy(default_config.defaults_retina)
+# ret_conf['input_mapping_func'] = row_col_to_input_breakout
+# ret_conf['row_bits'] = 8
+# ### (optional) to disable motion sensing
+# if 'direction' in ret_conf:
+#     ret_conf['direction'] = False
+# ### (optional) to disable orientation sensing
+# if 'gabor' in ret_conf:
+#     ret_conf['gabor'] = False
+#
+# mode = dvs_modes[MERGED]
+# retina = Retina(sim, breakout_pop, X_RESOLUTION // 4, Y_RESOLUTION // 4,
+#                 mode, cfg=ret_conf)
 
 # ----------------------------------------
 # Motion detection region
@@ -269,33 +270,124 @@ projectionN_off = sim.Projection(vert_subsamp_off_pop, n_off_pop, sim.FromListCo
 projectionS_on = sim.Projection(vert_subsamp_on_pop, s_on_pop, sim.FromListConnector(Connections_s_on))
 projectionS_off = sim.Projection(vert_subsamp_off_pop, s_off_pop, sim.FromListConnector(Connections_s_off))
 
-# rate generator (constant paddle) to inline east and west populations
-sim.Projection(rate_generator, inline_east_pop, sim.FromListConnector(paddle_inline_east_connections))
-sim.Projection(rate_generator, inline_west_pop, sim.FromListConnector(paddle_inline_west_connections))
+# # rate generator (constant paddle) to inline east and west populations
+# sim.Projection(rate_generator, inline_east_pop, sim.FromListConnector(paddle_inline_east_connections))
+# sim.Projection(rate_generator, inline_west_pop, sim.FromListConnector(paddle_inline_west_connections))
+#
+# # direction to inline east and west populations
+# sim.Projection(e_on_pop, inline_east_pop, sim.OneToOneConnector(weights=inline_direction_weight))
+# sim.Projection(w_on_pop, inline_west_pop, sim.OneToOneConnector(weights=inline_direction_weight))
 
-# direction to inline east and west populations
-sim.Projection(e_on_pop, inline_east_pop, sim.OneToOneConnector(weights=inline_direction_weight))
-sim.Projection(w_on_pop, inline_west_pop, sim.OneToOneConnector(weights=inline_direction_weight))
+# # inline east to key input right population
+# sim.Projection(inline_east_pop, key_input_right, sim.AllToAllConnector(weights=10.))
+# # inline west to key input left population
+# sim.Projection(inline_west_pop, key_input_left, sim.AllToAllConnector(weights=10.))
+#
+# #key input right and left to key input
+# sim.Projection(key_input_right, key_input,sim.FromListConnector(keyright_connections))
+# sim.Projection(key_input_left, key_input,sim.FromListConnector(keyleft_connections))
 
-# inline east to key input right population
-sim.Projection(inline_east_pop, key_input_right, sim.AllToAllConnector(weights=10.))
-# inline west to key input left population
-sim.Projection(inline_west_pop, key_input_left, sim.AllToAllConnector(weights=10.))
-
-#key input right and left to key input
-sim.Projection(key_input_right, key_input,sim.FromListConnector(keyright_connections))
-sim.Projection(key_input_left, key_input,sim.FromListConnector(keyleft_connections))
 # ----------------------------------------
 # Reinforcement learning region
 # ----------------------------------------
 
-# TODO Setup Actor and Critic populations
-actor = sim.Population(1000, cellclass=sim.IF_curr_exp, cellparams=cell_params_lif)
-critic = sim.Population(1000, cellclass=sim.IF_curr_exp, cellparams=cell_params_lif)
+# Setup the dopamine releasing neuron(s)
 
-# TODO State inputs: from CNN and motion networks to Actor and Critic populations
+reward_pop = sim.Population(1, sim.IF_curr_exp, cell_params_lif,
+                            label="reward_pop")
+punishment_pop = sim.Population(1, sim.IF_curr_exp, cell_params_lif,
+                                label="punishment_pop")
 
-# TODO Learning signal connection
+sim.Projection(breakout_pop, reward_pop, sim.FromListConnector([(get_reward_neuron_id(), 0, 2, 1)]))
+sim.Projection(breakout_pop, reward_pop, sim.FromListConnector([(get_punishment_neuron_id(), 0, 2, 1)]))
+
+supervision_probability = .8
+
+# Setup Actor and Critic populations
+population_size = 1000
+connection_probability = .1
+
+# Policy selection population
+actor = sim.Population(population_size//5, cellclass=sim.IF_curr_exp_supervision, cellparams=cell_params_lif,
+                       label="actor")
+# Value function population
+critic = sim.Population(population_size, cellclass=sim.IF_curr_exp_supervision, cellparams=cell_params_lif,
+                        label="critic")
+
+# Due to watchdogs, set population specific max size constraint
+
+actor.set_constraint(PartitionerMaximumSizeConstraint(10))
+critic.set_constraint(PartitionerMaximumSizeConstraint(10))
+
+# Reward (r) connection from Breakout
+sim.Projection(reward_pop, critic, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
+               target="excitatory", label='reward -> critic')
+# sim.Projection(punishment_pop, critic, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
+#                target="inhibitory", label='reward -> critic')
+
+# Supervision (TD error) signal connection
+synapse_dynamics = sim.SynapseDynamics(slow=sim.STDPMechanism(
+    timing_dependence=sim.SpikePairRule(tau_plus=15.0, tau_minus=30.0, tau_c=2.0, tau_d=40.0),
+    # Eligibility trace and dopamine constants
+    weight_dependence=sim.AdditiveWeightDependence(), mad=True, neuromodulation=True))
+
+sim.Projection(critic, critic, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
+               target="supervision", label='DA projection critic -> critic')
+
+sim.Projection(critic, actor, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
+               target="supervision", label='DA projection critic -> actor')
+
+# TODO State inputs from CNN
+
+# State inputs from motion networks
+
+# Policy
+sim.Projection(n_on_pop, actor, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
+               # synapse_dynamics=# synapse_dynamics,
+               target="excitatory", label='n_on_pop -> actor')
+sim.Projection(e_on_pop, actor, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
+               # synapse_dynamics=# synapse_dynamics,
+               target="excitatory", label='e_on_pop -> actor')
+sim.Projection(s_on_pop, actor, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
+               # synapse_dynamics=# synapse_dynamics,
+               target="excitatory", label='s_on_pop -> actor')
+sim.Projection(w_on_pop, actor, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
+               # synapse_dynamics=# synapse_dynamics,
+               target="excitatory", label='w_on_pop -> actor')
+sim.Projection(rate_generator, actor, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
+               # synapse_dynamics=# synapse_dynamics,
+               target="excitatory", label='rate -> actor')
+
+# Value
+sim.Projection(n_on_pop, critic, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
+               # synapse_dynamics=# synapse_dynamics,
+               target="excitatory", label='n_on_pop -> critic')
+sim.Projection(e_on_pop, critic, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
+               # synapse_dynamics=# synapse_dynamics,
+               target="excitatory", label='e_on_pop -> critic')
+sim.Projection(s_on_pop, critic, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
+               # synapse_dynamics=# synapse_dynamics,
+               target="excitatory", label='s_on_pop -> critic')
+sim.Projection(w_on_pop, critic, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
+               # synapse_dynamics=# synapse_dynamics,
+               target="excitatory", label='w_on_pop -> critic')
+sim.Projection(rate_generator, critic, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
+               # synapse_dynamics=# synapse_dynamics,
+               target="excitatory", label='rate -> critic')
+
+
+# Background noise source (10 Hz)
+
+poisson_noise = sim.Population(100, sim.SpikeSourcePoisson, {'rate': 5.})
+
+sim.Projection(poisson_noise, actor, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               target="excitatory", label='poisson -> actor')
+# sim.Projection(poisson_noise, critic, sim.FixedProbabilityConnector(connection_probability, weights=.45, delays=1),
+#                target="excitatory", label='poisson -> critic')
+
+# Connect Actor (action selection) to action execution
+sim.Projection(actor, key_input, sim.FixedProbabilityConnector(connection_probability * 3, weights=.1, delays=1),
+               target="excitatory", label='actor -> key_input')
 
 # ----------------------------------------
 # End region
@@ -305,6 +397,8 @@ sim.run(None)
 
 # Show visualiser (blocking)
 visualiser.show()
-
+# import time
+#
+# time.sleep(2)
 # End simulation
 sim.end()
