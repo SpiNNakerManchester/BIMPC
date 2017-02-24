@@ -327,7 +327,7 @@ sim.Projection(reward_pop, critic, sim.FixedProbabilityConnector(supervision_pro
 
 # Supervision (TD error) signal connection
 synapse_dynamics = sim.SynapseDynamics(slow=sim.STDPMechanism(
-    timing_dependence=sim.SpikePairRule(tau_plus=15.0, tau_minus=30.0, tau_c=2.0, tau_d=40.0),
+    timing_dependence=sim.SpikePairRule(tau_plus=15.0, tau_minus=30.0, tau_c=2.0, tau_d=200.0),
     # Eligibility trace and dopamine constants
     weight_dependence=sim.AdditiveWeightDependence(), mad=True, neuromodulation=True))
 
