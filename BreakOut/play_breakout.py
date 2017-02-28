@@ -308,86 +308,109 @@ population_size = 1000
 connection_probability = .1
 
 # Policy selection population
-actor = sim.Population(population_size//5, cellclass=sim.IF_curr_exp_supervision, cellparams=cell_params_lif,
-                       label="actor")
+actor_l = sim.Population(population_size // 2, cellclass=sim.IF_curr_exp_supervision, cellparams=cell_params_lif,
+                         label="actor_l")
+actor_r = sim.Population(population_size // 2, cellclass=sim.IF_curr_exp_supervision, cellparams=cell_params_lif,
+                         label="actor_r")
 # Value function population
-critic = sim.Population(population_size, cellclass=sim.IF_curr_exp_supervision, cellparams=cell_params_lif,
-                        label="critic")
+# critic = sim.Population(population_size, cellclass=sim.IF_curr_exp_supervision, cellparams=cell_params_lif,
+#                          label="critic")
 
 # Due to watchdogs, set population specific max size constraint
 
-actor.set_constraint(PartitionerMaximumSizeConstraint(10))
-critic.set_constraint(PartitionerMaximumSizeConstraint(10))
+actor_l.set_constraint(PartitionerMaximumSizeConstraint(50))
+actor_r.set_constraint(PartitionerMaximumSizeConstraint(50))
 
 # Reward (r) connection from Breakout
-sim.Projection(reward_pop, critic, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
-               target="excitatory", label='reward -> critic')
+
+# TODO Replace all to all connector with fixed weights with a trailing normal distribution of weights (?) & delays (?)
+# Recall some discussion (maybe a paper as well) on the effect of distal synapses
+sim.Projection(reward_pop, actor_l, sim.AllToAllConnector(weights=1., delays=1),
+               target="supervision", label='reward -> actor_l')
+sim.Projection(reward_pop, actor_r, sim.AllToAllConnector(weights=1., delays=1),
+               target="supervision", label='reward -> actor_r')
+# TODO add punishment
 # sim.Projection(punishment_pop, critic, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
 #                target="inhibitory", label='reward -> critic')
 
 # Supervision (TD error) signal connection
 synapse_dynamics = sim.SynapseDynamics(slow=sim.STDPMechanism(
-    timing_dependence=sim.SpikePairRule(tau_plus=15.0, tau_minus=30.0, tau_c=2.0, tau_d=200.0),
+    timing_dependence=sim.SpikePairRule(tau_plus=15.0, tau_minus=30.0, tau_c=2.0, tau_d=50.0),
     # Eligibility trace and dopamine constants
     weight_dependence=sim.AdditiveWeightDependence(), mad=True, neuromodulation=True))
-
-sim.Projection(critic, critic, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
-               target="supervision", label='DA projection critic -> critic')
-
-sim.Projection(critic, actor, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
-               target="supervision", label='DA projection critic -> actor')
+#
+# sim.Projection(actor_r, actor_r, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
+#                target="supervision", label='DA projection critic -> critic')
+#
+# sim.Projection(actor_r, actor_l, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
+#                target="supervision", label='DA projection critic -> actor')
 
 # TODO State inputs from CNN
 
 # State inputs from motion networks
 
-# Policy
-sim.Projection(n_on_pop, actor, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
-               # synapse_dynamics=# synapse_dynamics,
-               target="excitatory", label='n_on_pop -> actor')
-sim.Projection(e_on_pop, actor, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
-               # synapse_dynamics=# synapse_dynamics,
-               target="excitatory", label='e_on_pop -> actor')
-sim.Projection(s_on_pop, actor, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
-               # synapse_dynamics=# synapse_dynamics,
-               target="excitatory", label='s_on_pop -> actor')
-sim.Projection(w_on_pop, actor, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
-               # synapse_dynamics=# synapse_dynamics,
-               target="excitatory", label='w_on_pop -> actor')
-sim.Projection(rate_generator, actor, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
-               # synapse_dynamics=# synapse_dynamics,
-               target="excitatory", label='rate -> actor')
+# Actor Left
 
-# Value
-sim.Projection(n_on_pop, critic, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
-               # synapse_dynamics=# synapse_dynamics,
-               target="excitatory", label='n_on_pop -> critic')
-sim.Projection(e_on_pop, critic, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
-               # synapse_dynamics=# synapse_dynamics,
-               target="excitatory", label='e_on_pop -> critic')
-sim.Projection(s_on_pop, critic, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
-               # synapse_dynamics=# synapse_dynamics,
-               target="excitatory", label='s_on_pop -> critic')
-sim.Projection(w_on_pop, critic, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
-               # synapse_dynamics=# synapse_dynamics,
-               target="excitatory", label='w_on_pop -> critic')
-sim.Projection(rate_generator, critic, sim.FixedProbabilityConnector(connection_probability, weights=.7, delays=1),
-               # synapse_dynamics=# synapse_dynamics,
-               target="excitatory", label='rate -> critic')
+sim.Projection(n_on_pop, actor_l, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               synapse_dynamics=synapse_dynamics,
+               target="excitatory", label='n_on_pop -> actor_l')
+sim.Projection(e_on_pop, actor_l, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               synapse_dynamics=synapse_dynamics,
+               target="excitatory", label='e_on_pop -> actor_l')
+sim.Projection(s_on_pop, actor_l, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               synapse_dynamics=synapse_dynamics,
+               target="excitatory", label='s_on_pop -> actor_l')
+sim.Projection(w_on_pop, actor_l, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               synapse_dynamics=synapse_dynamics,
+               target="excitatory", label='w_on_pop -> actor_l')
+sim.Projection(rate_generator, actor_l, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               synapse_dynamics=synapse_dynamics,
+               target="excitatory", label='rate -> actor_l')
+#
+# # Actor Right
+#
+sim.Projection(n_on_pop, actor_r, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               synapse_dynamics=synapse_dynamics,
+               target="excitatory", label='n_on_pop -> actor_r')
+sim.Projection(e_on_pop, actor_r, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               synapse_dynamics=synapse_dynamics,
+               target="excitatory", label='e_on_pop -> actor_r')
+sim.Projection(s_on_pop, actor_r, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               synapse_dynamics=synapse_dynamics,
+               target="excitatory", label='s_on_pop -> actor_r')
+sim.Projection(w_on_pop, actor_r, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               synapse_dynamics=synapse_dynamics,
+               target="excitatory", label='w_on_pop -> actor_r')
+sim.Projection(rate_generator, actor_r, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               synapse_dynamics=synapse_dynamics,
+               target="excitatory", label='rate -> actor_r')
 
+# Background noise source (5 Hz)
+# uncorrelated
 
-# Background noise source (10 Hz)
+poisson_noise_l = sim.Population(100, sim.SpikeSourcePoisson, {'rate': 5.})
+poisson_noise_r = sim.Population(100, sim.SpikeSourcePoisson, {'rate': 5.})
 
-poisson_noise = sim.Population(100, sim.SpikeSourcePoisson, {'rate': 5.})
-
-sim.Projection(poisson_noise, actor, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+sim.Projection(poisson_noise_l, actor_l, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
+               target="excitatory", label='poisson -> actor')
+sim.Projection(poisson_noise_r, actor_r, sim.FixedProbabilityConnector(connection_probability, weights=.5, delays=1),
                target="excitatory", label='poisson -> actor')
 # sim.Projection(poisson_noise, critic, sim.FixedProbabilityConnector(connection_probability, weights=.45, delays=1),
 #                target="excitatory", label='poisson -> critic')
 
 # Connect Actor (action selection) to action execution
-sim.Projection(actor, key_input, sim.FixedProbabilityConnector(connection_probability * 3, weights=.1, delays=1),
+
+
+sim.Projection(actor_l, key_input_left,
+               sim.FixedProbabilityConnector(connection_probability * 5, weights=.2, delays=1),
                target="excitatory", label='actor -> key_input')
+
+sim.Projection(actor_l, key_input_right,
+               sim.FixedProbabilityConnector(connection_probability * 5, weights=.2, delays=1),
+               target="excitatory", label='actor -> key_input')
+
+sim.Projection(key_input_left, key_input, sim.FromListConnector([(0, 1, 1., 1)]), label="key_input_left, key_input")
+sim.Projection(key_input_right, key_input, sim.FromListConnector([(0, 0, 1., 1)]), label="key_input_left, key_input")
 
 # ----------------------------------------
 # End region
