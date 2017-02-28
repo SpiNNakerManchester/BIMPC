@@ -65,15 +65,16 @@ breakout_pop = sim.Population(1, spinn_breakout.Breakout, {}, label="breakout")
 ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT)
 
 # Create spike injector to inject keyboard input into simulation
-# key_input = sim.Population(2, ex.SpikeInjector, {"port": 12367}, label="key_input")
-# key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["key_input"])
+key_input_force = sim.Population(2, ex.SpikeInjector, {"port": 12367}, label="key_input")
+key_input_connection = ex.SpynnakerLiveSpikesConnection(send_labels=["key_input"])
+
 #
 # # Connect key spike injector to breakout population
-# sim.Projection(key_input, breakout_pop, sim.OneToOneConnector(weights=2))
+sim.Projection(key_input_force, breakout_pop, sim.OneToOneConnector(weights=2))
 #
 # Create visualiser
 visualiser = spinn_breakout.Visualiser(
-    UDP_PORT, key_input_connection=None,
+    UDP_PORT, key_input_connection=key_input_connection,
     x_res=X_RESOLUTION, y_res=Y_RESOLUTION,
     x_bits=X_BITS, y_bits=Y_BITS)
 
@@ -337,7 +338,7 @@ sim.Projection(reward_pop, actor_r, sim.AllToAllConnector(weights=1., delays=1),
 synapse_dynamics = sim.SynapseDynamics(slow=sim.STDPMechanism(
     timing_dependence=sim.SpikePairRule(tau_plus=15.0, tau_minus=30.0, tau_c=2.0, tau_d=50.0),
     # Eligibility trace and dopamine constants
-    weight_dependence=sim.AdditiveWeightDependence(), mad=True, neuromodulation=True))
+    weight_dependence=sim.AdditiveWeightDependence(w_max=2.0,A_plus=0.1, A_minus=0.1,), mad=True, neuromodulation=True))
 #
 # sim.Projection(actor_r, actor_r, sim.FixedProbabilityConnector(supervision_probability, weights=1., delays=1),
 #                target="supervision", label='DA projection critic -> critic')
@@ -412,6 +413,7 @@ sim.Projection(actor_l, key_input_right,
 sim.Projection(key_input_left, key_input, sim.FromListConnector([(0, 1, 1., 1)]), label="key_input_left, key_input")
 sim.Projection(key_input_right, key_input, sim.FromListConnector([(0, 0, 1., 1)]), label="key_input_left, key_input")
 
+sim.Projection(key_input_force, key_input, sim.OneToOneConnector(weights=2), target="inhibitory")
 # ----------------------------------------
 # End region
 # ----------------------------------------
