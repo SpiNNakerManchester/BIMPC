@@ -281,22 +281,22 @@ population_size = 1000
 connection_probability = .1
 
 # Reward
-sim.Projection(reward_pop, key_input_right, sim.AllToAllConnector(weights=2., delays=1),
+sim.Projection(reward_pop, key_input_right, sim.AllToAllConnector(weights=1., delays=1),
                target="reward", label='reward -> actor_l')
-sim.Projection(reward_pop, key_input_left, sim.AllToAllConnector(weights=2., delays=1),
+sim.Projection(reward_pop, key_input_left, sim.AllToAllConnector(weights=1., delays=1),
                target="reward", label='reward -> actor_r')
 
 # Punishment
 
-sim.Projection(punishment_pop, key_input_right, sim.AllToAllConnector(weights=1., delays=1),
-               target="punishment", label='reward -> actor_l')
-sim.Projection(punishment_pop, key_input_left, sim.AllToAllConnector(weights=1., delays=1),
-               target="punishment", label='reward -> actor_r')
+# sim.Projection(punishment_pop, key_input_right, sim.AllToAllConnector(weights=.2, delays=1),
+#                target="punishment", label='reward -> actor_l')
+# sim.Projection(punishment_pop, key_input_left, sim.AllToAllConnector(weights=.2, delays=1),
+#                target="punishment", label='reward -> actor_r')
 # Supervision (TD error) signal connection
 synapse_dynamics = sim.SynapseDynamics(slow=sim.STDPMechanism(
-    timing_dependence=sim.SpikePairRule(tau_plus=15.0, tau_minus=30.0, tau_c=2.0, tau_d=100.0),
+    timing_dependence=sim.SpikePairRule(tau_plus=15.0, tau_minus=30.0, tau_c=2.0, tau_d=200.0),
     # Eligibility trace and dopamine constants
-    weight_dependence=sim.AdditiveWeightDependence(w_max=2.0,A_plus=0.05, A_minus=0.05,), mad=True,
+    weight_dependence=sim.AdditiveWeightDependence(w_max=2.0,A_plus=0.05, A_minus=0.03,), mad=True,
     neuromodulation=True))
 
 # Whatever
@@ -309,6 +309,15 @@ sim.Projection(inline_east_pop, key_input_right, sim.AllToAllConnector(weights=.
 sim.Projection(inline_west_pop, key_input_left, sim.AllToAllConnector(weights=.3),
                synapse_dynamics=synapse_dynamics
                )
+# # inline east to key input right population
+# sim.Projection(inline_east_pop, key_input_left, sim.AllToAllConnector(weights=.1),
+#                synapse_dynamics=synapse_dynamics
+#                )
+# # inline west to key input left population
+# sim.Projection(inline_west_pop, key_input_right, sim.AllToAllConnector(weights=.1),
+#                synapse_dynamics=synapse_dynamics
+#                )
+
 
 # inline east to key input right population
 sim.Projection(n_on_pop, key_input_left, sim.AllToAllConnector(weights=.3),
@@ -335,9 +344,9 @@ sim.Projection(key_input_left, paddle_controller, sim.FromListConnector(keyleft_
 poisson_noise_l = sim.Population(1, sim.SpikeSourcePoisson, {'rate': 10.})
 poisson_noise_r = sim.Population(1, sim.SpikeSourcePoisson, {'rate': 10.})
 
-sim.Projection(poisson_noise_l, key_input_right, sim.AllToAllConnector(weights=.5, delays=1),
+sim.Projection(poisson_noise_l, key_input_right, sim.AllToAllConnector(weights=.3, delays=1),
                target="excitatory", label='poisson -> actor')
-sim.Projection(poisson_noise_r, key_input_left, sim.AllToAllConnector(weights=.5, delays=1),
+sim.Projection(poisson_noise_r, key_input_left, sim.AllToAllConnector(weights=.3, delays=1),
                target="excitatory", label='poisson -> actor')
 
 # Create visualiser
