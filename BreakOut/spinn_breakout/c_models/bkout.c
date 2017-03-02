@@ -36,6 +36,7 @@
 // ball position and velocity scale factor
 #define FACT 16
 
+
 //----------------------------------------------------------------------------
 // Enumerations
 //----------------------------------------------------------------------------
@@ -107,6 +108,9 @@ static uint32_t simulation_ticks = 0;
 
 //! How many ticks until next frame
 static uint32_t tick_in_frame = 0;
+
+//ratio used in randomising initial x coordinate
+static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH*FACT);
 
 //----------------------------------------------------------------------------
 // Inline functions
@@ -255,6 +259,8 @@ static void update_frame ()
     {
       v = -1 * FACT;
       y = (GAME_HEIGHT / 2)*FACT;
+      //randomises initial x location
+      x = (int)(mars_kiss32()/x_ratio);
       out_of_play = OUT_OF_PLAY;
       
       // Decrease score
