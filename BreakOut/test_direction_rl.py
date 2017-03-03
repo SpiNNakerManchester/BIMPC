@@ -67,6 +67,17 @@ cell_params_lif = {'cm': 0.25,
                    'v_thresh': -50.0
                    }
 
+pyramidal_lif = {'cm': 0.75,
+                 'i_offset': 0.0,
+                 'tau_m': 20.0,
+                 'tau_refrac': 5.0,
+                 'tau_syn_E': 5.0,
+                 'tau_syn_I': 5.0,
+                 'v_reset': -70.0,
+                 'v_rest': -65.0,
+                 'v_thresh': -50.0
+                 }
+
 # rate generator parameters
 rate_weight = 1.5
 rate_delay = 16.
@@ -75,7 +86,7 @@ rate_delay = 16.
 breakout_pop = sim.Population(1, spinn_breakout.Breakout, {}, label="breakout")
 ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=breakout_port)
 # Create key input population
-paddle_controller = sim.Population(2, sim.IF_curr_exp, cell_params_lif, label="key_input")
+paddle_controller = sim.Population(2, sim.IF_curr_exp_supervision, cell_params_lif, label="key_input")
 # Create spike injector to inject keyboard input into simulation
 key_input = sim.Population(2, ex.SpikeInjector, {"port": 12367}, label="key_input")
 key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["key_input"])
@@ -116,8 +127,8 @@ inline_east_pop = sim.Population(X_RESOLUTION, sim.IF_curr_exp, {}, label="inlin
 inline_west_pop = sim.Population(X_RESOLUTION, sim.IF_curr_exp, {}, label="inline west channel")
 
 # Create key input right and left populations
-key_input_right = sim.Population(1, sim.IF_curr_exp_supervision, cell_params_lif, label="key_input_right")
-key_input_left = sim.Population(1, sim.IF_curr_exp_supervision, cell_params_lif, label="key_input_left")
+key_input_right = sim.Population(1, sim.IF_curr_exp, cell_params_lif, label="key_input_right")
+key_input_left = sim.Population(1, sim.IF_curr_exp, cell_params_lif, label="key_input_left")
 
 # declare projection weights
 # breakout--> subsample
@@ -264,10 +275,22 @@ for i in range(Y_RESOLUTION - 1):
         # sim.Projection(n_on_pop,inline_east_pop, sim.FromListConnector(Connections_n_inh), target='inhibitory')
 # sim.Projection(n_on_pop,inline_west_pop, sim.FromListConnector(Connections_n_inh), target='inhibitory')
 
-
-
-
 # RL part
+# Setup Actor and Critic populations
+population_size = 500
+connection_probability = .1
+# State representation
+state_population = sim.Population(population_size, sim.IF_curr_exp,
+                                  cellparams=cell_params_lif, label="state pop")
+actor_population = sim.Population(population_size, sim.IF_curr_exp_supervision,
+                                  cellparams=pyramidal_lif, label="state pop")
+
+sim.Projection(state_population, state_population,
+               sim.FixedProbabilityConnector(p_connect=connection_probability * 2, weights=.3)
+               )
+
+state_population.set_constraint(PartitionerMaximumSizeConstraint(100))
+actor_population.set_constraint(PartitionerMaximumSizeConstraint(15))
 
 reward_pop = sim.Population(1, sim.IF_curr_exp, cell_params_lif,
                             label="reward_pop")
@@ -276,79 +299,105 @@ punishment_pop = sim.Population(1, sim.IF_curr_exp, cell_params_lif,
 sim.Projection(breakout_pop, reward_pop, sim.FromListConnector([(get_reward_neuron_id(), 0, 2, 1)]))
 sim.Projection(breakout_pop, punishment_pop, sim.FromListConnector([(get_punishment_neuron_id(), 0, 2, 2)]))
 
-# Setup Actor and Critic populations
-population_size = 1000
-connection_probability = .1
-
 # Reward
-sim.Projection(reward_pop, key_input_right, sim.AllToAllConnector(weights=1., delays=1),
+sim.Projection(reward_pop, actor_population, sim.AllToAllConnector(weights=.1, delays=1),
                target="reward", label='reward -> actor_l')
-sim.Projection(reward_pop, key_input_left, sim.AllToAllConnector(weights=1., delays=1),
-               target="reward", label='reward -> actor_r')
+# sim.Projection(reward_pop, key_input_left, sim.AllToAllConnector(weights=.001, delays=1),
+#                target="reward", label='reward -> actor_r')
 
 # Punishment
 
-# sim.Projection(punishment_pop, key_input_right, sim.AllToAllConnector(weights=.2, delays=1),
+# sim.Projection(punishment_pop, key_input_right, sim.AllToAllConnector(weights=.0005, delays=1),
 #                target="punishment", label='reward -> actor_l')
-# sim.Projection(punishment_pop, key_input_left, sim.AllToAllConnector(weights=.2, delays=1),
+# sim.Projection(punishment_pop, key_input_left, sim.AllToAllConnector(weights=.0005, delays=1),
 #                target="punishment", label='reward -> actor_r')
 # Supervision (TD error) signal connection
 synapse_dynamics = sim.SynapseDynamics(slow=sim.STDPMechanism(
     timing_dependence=sim.SpikePairRule(tau_plus=15.0, tau_minus=30.0, tau_c=2.0, tau_d=200.0),
     # Eligibility trace and dopamine constants
-    weight_dependence=sim.AdditiveWeightDependence(w_max=2.0,A_plus=0.05, A_minus=0.03,), mad=True,
+    weight_dependence=sim.AdditiveWeightDependence(), mad=True,
     neuromodulation=True))
 
 # Whatever
-
-# inline east to key input right population
-sim.Projection(inline_east_pop, key_input_right, sim.AllToAllConnector(weights=.3),
-               synapse_dynamics=synapse_dynamics
-               )
-# inline west to key input left population
-sim.Projection(inline_west_pop, key_input_left, sim.AllToAllConnector(weights=.3),
-               synapse_dynamics=synapse_dynamics
-               )
-# # inline east to key input right population
-# sim.Projection(inline_east_pop, key_input_left, sim.AllToAllConnector(weights=.1),
-#                synapse_dynamics=synapse_dynamics
-#                )
-# # inline west to key input left population
-# sim.Projection(inline_west_pop, key_input_right, sim.AllToAllConnector(weights=.1),
-#                synapse_dynamics=synapse_dynamics
-#                )
-
-
-# inline east to key input right population
-sim.Projection(n_on_pop, key_input_left, sim.AllToAllConnector(weights=.3),
-               synapse_dynamics=synapse_dynamics
-               )
-# inline west to key input left population
-sim.Projection(n_on_pop, key_input_right, sim.AllToAllConnector(weights=.3),
-               synapse_dynamics=synapse_dynamics
+sim.Projection(state_population, actor_population,
+               sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
                )
 
 # inline east to key input right population
-sim.Projection(s_on_pop, key_input_left, sim.AllToAllConnector(weights=.3),
-               synapse_dynamics=synapse_dynamics
+sim.Projection(e_on_pop, state_population, sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
                )
 # inline west to key input left population
-sim.Projection(s_on_pop, key_input_right, sim.AllToAllConnector(weights=.3),
-               synapse_dynamics=synapse_dynamics
+sim.Projection(e_on_pop, state_population, sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
+               )
+# inline east to key input right population
+sim.Projection(w_on_pop, state_population, sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
+               )
+# inline west to key input left population
+sim.Projection(w_on_pop, state_population, sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
+               )
+# Rate
+sim.Projection(rate_generator, state_population,
+               sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
+               )
+# inline west to key input left population
+sim.Projection(rate_generator, state_population,
+               sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
                )
 
+# inline east to key input right population
+sim.Projection(n_on_pop, state_population, sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
+               )
+# inline west to key input left population
+sim.Projection(n_on_pop, state_population, sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
+               )
+
+# inline east to key input right population
+sim.Projection(s_on_pop, state_population, sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
+               )
+# inline west to key input left population
+sim.Projection(s_on_pop, state_population, sim.FixedProbabilityConnector(p_connect=connection_probability, weights=.2),
+               # synapse_dynamics=synapse_dynamics
+               )
+# learned part
+sim.Projection(actor_population, key_input_left, sim.FixedNumberPreConnector(population_size // 2, weights=.2),
+               # synapse_dynamics=synapse_dynamics
+               )
+sim.Projection(actor_population, key_input_right, sim.FixedNumberPreConnector(population_size // 2, weights=.2),
+               # synapse_dynamics=synapse_dynamics
+               )
 # key input right and left to key input
-sim.Projection(key_input_right, paddle_controller, sim.FromListConnector(keyright_connections))
-sim.Projection(key_input_left, paddle_controller, sim.FromListConnector(keyleft_connections))
+sim.Projection(key_input_right, paddle_controller, sim.FromListConnector(keyright_connections),
+               synapse_dynamics=synapse_dynamics
+               )
+sim.Projection(key_input_left, paddle_controller, sim.FromListConnector(keyleft_connections),
+               synapse_dynamics=synapse_dynamics
+               )
 
-poisson_noise_l = sim.Population(1, sim.SpikeSourcePoisson, {'rate': 10.})
-poisson_noise_r = sim.Population(1, sim.SpikeSourcePoisson, {'rate': 10.})
+poisson_noise = sim.Population(50, sim.SpikeSourcePoisson, {'rate': 10.})
+# poisson_noise_r = sim.Population(1, sim.SpikeSourcePoisson, {'rate': 10.})
 
-sim.Projection(poisson_noise_l, key_input_right, sim.AllToAllConnector(weights=.3, delays=1),
+# sim.Projection(poisson_noise_l, key_input_right, sim.AllToAllConnector(weights=.4, delays=1),
+#                target="excitatory", label='poisson -> actor')
+# sim.Projection(poisson_noise_r, key_input_left, sim.AllToAllConnector(weights=.4, delays=1),
+#                target="excitatory", label='poisson -> actor')
+
+state_poisson_noise = sim.Population(50, sim.SpikeSourcePoisson, {'rate': 10.})
+sim.Projection(state_poisson_noise, state_population,
+               sim.FixedProbabilityConnector(connection_probability * 4, weights=.3, delays=1),
                target="excitatory", label='poisson -> actor')
-sim.Projection(poisson_noise_r, key_input_left, sim.AllToAllConnector(weights=.3, delays=1),
+sim.Projection(poisson_noise, actor_population,
+               sim.FixedProbabilityConnector(connection_probability * 4, weights=.3, delays=1),
                target="excitatory", label='poisson -> actor')
-
 # Create visualiser
 visualiser_full = spinn_breakout.Visualiser(
     breakout_port, key_input_connection,

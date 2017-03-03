@@ -300,7 +300,7 @@ punishment_pop = sim.Population(1, sim.IF_curr_exp, cell_params_lif,
                                 label="punishment_pop")
 
 sim.Projection(breakout_pop, reward_pop, sim.FromListConnector([(get_reward_neuron_id(), 0, 2, 1)]))
-sim.Projection(breakout_pop, reward_pop, sim.FromListConnector([(get_punishment_neuron_id(), 0, 2, 1)]))
+sim.Projection(breakout_pop, punishment_pop, sim.FromListConnector([(get_punishment_neuron_id(), 0, 2, 1)]))
 
 supervision_probability = .8
 
