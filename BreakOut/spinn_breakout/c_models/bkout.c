@@ -110,6 +110,9 @@ static uint32_t tick_in_frame = 0;
 
 uint32_t left_key_count, right_key_count;
 
+//ratio used in randomising initial x coordinate
+static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH*FACT);
+
 //----------------------------------------------------------------------------
 // Inline functions
 //----------------------------------------------------------------------------
@@ -264,6 +267,8 @@ static void update_frame ()
     {
       v = -1 * FACT;
       y = (GAME_HEIGHT / 2)*FACT;
+      //randomises initial x location
+      x = (int)(mars_kiss32()/x_ratio);
       out_of_play = OUT_OF_PLAY;
       
       // Decrease score
@@ -329,7 +334,6 @@ static bool initialize(uint32_t *timer_period)
 
 void timer_callback(uint ticks, uint dummy)
 {
-  use(dummy);
   // If a fixed number of simulation ticks are specified and these have passed
   // **NOTE** ticks starts at 1!
   if (!infinite_run && (ticks - 1) >= simulation_ticks)
