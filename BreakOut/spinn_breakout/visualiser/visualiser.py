@@ -90,7 +90,10 @@ class Visualiser(object):
         self.animation = animation.FuncAnimation(self.fig, self._update,
                                                  interval=20.0, blit=False)
         # Show animated plot (blocking)
-        plt.show()
+        try:
+            plt.show()
+        except:
+            pass
 
     # ------------------------------------------------------------------------
     # Private methods
