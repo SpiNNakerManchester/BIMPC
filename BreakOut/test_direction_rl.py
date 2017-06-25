@@ -1,11 +1,16 @@
-import spynnaker.pyNN as sim
-from breakout_utils import get_punishment_neuron_id, get_reward_neuron_id
 from pacman.model.constraints.partitioner_constraints.partitioner_maximum_size_constraint import \
     PartitionerMaximumSizeConstraint
-from spynnaker_external_devices_plugin.pyNN.connections. \
+
+import spynnaker7.pyNN as sim
+from breakout_utils import get_punishment_neuron_id, get_reward_neuron_id
+from spynnaker_external_devices_plugin.pyNN.connections.\
     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
-import spynnaker_external_devices_plugin.pyNN as ex
+from spynnaker_external_devices_plugin.pyNN.spynnaker_external_device_plugin_manager import SpynnakerExternalDevicePluginManager as ex
 import spinn_breakout
+
+# Layout of pixels
+from spynnaker_external_devices_plugin.pyNN.utility_models.spike_injector import SpikeInjector
+from spinn_breakout.visualiser.visualiser import Visualiser
 import numpy as np
 # from vision.sim_tools.connectors.direction_connectors_rob import    paddle_connection#, direction_connection,subsample_connection,
 from vision.sim_tools.connectors.direction_connectors import direction_connection_angle, subsample_connection, \
@@ -88,7 +93,7 @@ ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=breakout_port)
 # Create key input population
 paddle_controller = sim.Population(2, sim.IF_curr_exp_supervision, cell_params_lif, label="key_input")
 # Create spike injector to inject keyboard input into simulation
-key_input = sim.Population(2, ex.SpikeInjector, {"port": 12367}, label="key_input")
+key_input = sim.Population(2, SpikeInjector, {"port": 12367}, label="key_input")
 key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["key_input"])
 # Connect key spike injector to breakout population
 sim.Projection(key_input, paddle_controller, sim.OneToOneConnector(weights=5))
@@ -399,7 +404,7 @@ sim.Projection(poisson_noise, actor_population,
                sim.FixedProbabilityConnector(connection_probability * 4, weights=.3, delays=1),
                target="excitatory", label='poisson -> actor')
 # Create visualiser
-visualiser_full = spinn_breakout.Visualiser(
+visualiser_full = Visualiser(
     breakout_port, key_input_connection,
     x_res=X_RESOLUTION, y_res=Y_RESOLUTION,
     x_bits=X_BITS, y_bits=Y_BITS)

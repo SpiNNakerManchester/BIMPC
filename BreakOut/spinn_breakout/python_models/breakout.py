@@ -1,8 +1,10 @@
 # PACMAN imports
+from spynnaker.pyNN.models.common.population_settable_change_requires_mapping import \
+    PopulationSettableChangeRequiresMapping
+
 from pacman.executor.injection_decorator import inject_items
 from pacman.model.decorators.overrides import overrides
-from pacman.model.graphs.application.impl.application_vertex import \
-    ApplicationVertex
+from pacman.model.graphs.application import ApplicationVertex
 from pacman.model.resources.cpu_cycles_per_tick_resource import \
     CPUCyclesPerTickResource
 from pacman.model.resources.dtcm_resource import DTCMResource
@@ -10,30 +12,31 @@ from pacman.model.resources.resource_container import ResourceContainer
 from pacman.model.resources.sdram_resource import SDRAMResource
 
 # SpinnFrontEndCommon imports
-from spinn_front_end_common.abstract_models\
+from spinn_front_end_common.abstract_models \
     .abstract_binary_uses_simulation_run import AbstractBinaryUsesSimulationRun
 from spinn_front_end_common.abstract_models \
     .abstract_generates_data_specification \
     import AbstractGeneratesDataSpecification
 from spinn_front_end_common.abstract_models.abstract_has_associated_binary \
     import AbstractHasAssociatedBinary
-from spinn_front_end_common.abstract_models.\
+from spinn_front_end_common.abstract_models. \
     abstract_provides_outgoing_partition_constraints import \
     AbstractProvidesOutgoingPartitionConstraints
-from pacman.model.constraints.key_allocator_constraints\
+from pacman.model.constraints.key_allocator_constraints \
     .key_allocator_contiguous_range_constraint \
     import KeyAllocatorContiguousRangeContraint
 from spinn_front_end_common.interface.simulation import simulation_utilities
-from spinn_front_end_common.utilities import constants as\
+from spinn_front_end_common.utilities import constants as \
     front_end_common_constants
 
 # sPyNNaker imports
-from spynnaker.pyNN.models.common.population_settable_change_requires_mapping \
-    import PopulationSettableChangeRequiresMapping
+from spynnaker.pyNN.models.abstract_models import AbstractAcceptsIncomingSynapses
+from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
 from spynnaker.pyNN.utilities import constants
 
 # Breakout imports
 from breakout_machine_vertex import BreakoutMachineVertex
+
 
 # ----------------------------------------------------------------------------
 # Breakout
@@ -43,15 +46,38 @@ class BreakoutSynapseType(object):
     def get_synapse_id_by_target(self, target):
         return 0
 
+
 # ----------------------------------------------------------------------------
 # Breakout
 # ----------------------------------------------------------------------------
 class Breakout(
     ApplicationVertex, AbstractGeneratesDataSpecification,
     AbstractHasAssociatedBinary, AbstractProvidesOutgoingPartitionConstraints,
-    PopulationSettableChangeRequiresMapping, AbstractBinaryUsesSimulationRun):
+    AbstractAcceptsIncomingSynapses,
+    PopulationSettableChangeRequiresMapping,
+    # AbstractBinaryUsesSimulationRun
+):
+    def get_connections_from_machine(self, transceiver, placement, edge, graph_mapper, routing_infos,
+                                     synapse_information, machine_time_step):
+        super(Breakout, self).get_connections_from_machine(transceiver, placement, edge, graph_mapper, routing_infos,
+                                                           synapse_information, machine_time_step)
 
-    BREAKOUT_REGION_BYTES = 4
+    def set_synapse_dynamics(self, synapse_dynamics):
+        pass
+
+    def add_pre_run_connection_holder(self, connection_holder, projection_edge, synapse_information):
+        super(Breakout, self).add_pre_run_connection_holder(connection_holder, projection_edge, synapse_information)
+
+    def get_binary_start_type(self):
+        super(Breakout, self).get_binary_start_type()
+    #
+    # def requires_mapping(self):
+    #     pass
+
+    def clear_connection_cache(self):
+        pass
+
+    BREAKOUT_REGION_BYTES = 12
     WIDTH_PIXELS = 160
     HEIGHT_PIXELS = 128
     COLOUR_BITS = 2
@@ -59,7 +85,7 @@ class Breakout(
     # **HACK** for Projection to connect a synapse type is required
     synapse_type = BreakoutSynapseType()
 
-    def __init__(self, n_neurons, constraints=None, label="Breakout"):
+    def __init__(self, n_neurons, width=160, height=128, constraints=None, label="Breakout"):
         # **NOTE** n_neurons currently ignored - width and height will be
         # specified as additional parameters, forcing their product to be
         # duplicated in n_neurons seems pointless
@@ -68,11 +94,16 @@ class Breakout(
         ApplicationVertex.__init__(
             self, label, constraints, self.n_atoms)
         AbstractProvidesOutgoingPartitionConstraints.__init__(self)
-        PopulationSettableChangeRequiresMapping.__init__(self)
+        # PopulationSettableChangeRequiresMapping.__init__(self)
+        self.width = width
+        self.height = height
 
     def get_maximum_delay_supported_in_ms(self, machine_time_step):
         # Breakout has no synapses so can simulate only one time step of delay
         return machine_time_step / 1000.0
+
+    def get_max_atoms_per_core(self):
+        return self.n_atoms
 
     # ------------------------------------------------------------------------
     # ApplicationVertex overrides
@@ -88,7 +119,6 @@ class Breakout(
             cpu_cycles=CPUCyclesPerTickResource(0))
 
         return container
-
 
     @overrides(ApplicationVertex.create_machine_vertex)
     def create_machine_vertex(self, vertex_slice, resources_required,
@@ -116,7 +146,7 @@ class Breakout(
                additional_arguments={"machine_time_step", "time_scale_factor",
                                      "graph_mapper", "routing_info", "tags",
                                      "n_machine_time_steps"}
-    )
+               )
     def generate_data_specification(self, spec, placement, machine_time_step,
                                     time_scale_factor, graph_mapper,
                                     routing_info, tags, n_machine_time_steps):
@@ -129,11 +159,11 @@ class Breakout(
         # Reserve memory:
         spec.reserve_memory_region(
             region=BreakoutMachineVertex._BREAKOUT_REGIONS.SYSTEM.value,
-                    size=front_end_common_constants.SYSTEM_BYTES_REQUIREMENT,
-                    label='setup')
+            size=front_end_common_constants.SYSTEM_BYTES_REQUIREMENT,
+            label='setup')
         spec.reserve_memory_region(
             region=BreakoutMachineVertex._BREAKOUT_REGIONS.BREAKOUT.value,
-                    size=self.BREAKOUT_REGION_BYTES, label='BreakoutParams')
+            size=self.BREAKOUT_REGION_BYTES, label='BreakoutParams')
         # vertex.reserve_provenance_data_region(spec)
 
         # Write setup region
@@ -150,6 +180,8 @@ class Breakout(
             BreakoutMachineVertex._BREAKOUT_REGIONS.BREAKOUT.value)
         spec.write_value(routing_info.get_first_key_from_pre_vertex(
             vertex, constants.SPIKE_PARTITION_ID))
+        spec.write_value(self.width)
+        spec.write_value(self.height)
 
         # End-of-Spec:
         spec.end_specification()

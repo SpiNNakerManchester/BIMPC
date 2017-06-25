@@ -2,19 +2,19 @@ from enum import Enum
 
 # PACMAN imports
 from pacman.model.decorators.overrides import overrides
-from pacman.model.graphs.machine.impl.machine_vertex \
-    import MachineVertex
+
 
 # SpinnFrontEndCommon imports
-from spinn_front_end_common.interface.provenance\
+from pacman.model.graphs.machine import MachineVertex
+from spinn_front_end_common.interface.provenance \
     .provides_provenance_data_from_machine_impl \
     import ProvidesProvenanceDataFromMachineImpl
+
 
 # ----------------------------------------------------------------------------
 # BreakoutMachineVertex
 # ----------------------------------------------------------------------------
 class BreakoutMachineVertex(MachineVertex):
-
     _BREAKOUT_REGIONS = Enum(
         value="_BREAKOUT_REGIONS",
         names=[('SYSTEM', 0),

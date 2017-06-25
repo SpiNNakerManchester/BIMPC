@@ -73,6 +73,7 @@ typedef enum
 //----------------------------------------------------------------------------
 // Globals
 //----------------------------------------------------------------------------
+int game_width, game_height;
 // initial ball coordinates in fixed-point
 static int x = (GAME_WIDTH / 4) * FACT;
 static int y = (GAME_HEIGHT / 2) * FACT;
@@ -302,7 +303,7 @@ static bool initialize(uint32_t *timer_period)
   // Get the timing details and set up the simulation interface
   if (!simulation_initialise(data_specification_get_region(REGION_SYSTEM, address),
     APPLICATION_NAME_HASH, timer_period, &simulation_ticks,
-    &infinite_run, 1, NULL, data_specification_get_region(REGION_PROVENANCE, address)))
+    &infinite_run, 1, data_specification_get_region(REGION_PROVENANCE, address)))
   {
       return false;
   }
@@ -310,7 +311,11 @@ static bool initialize(uint32_t *timer_period)
   // Read breakout region
   address_t breakout_region = data_specification_get_region(REGION_BREAKOUT, address);
   key = breakout_region[0];
+  game_width = breakout_region[1];
+  game_height = breakout_region[2];
   log_info("\tKey=%08x", key);
+  log_info("\game_width=%08x", game_width);
+  log_info("\game_height=%08x", game_height);
 
   log_info("Initialise: completed successfully");
 
