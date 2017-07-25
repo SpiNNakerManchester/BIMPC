@@ -117,9 +117,10 @@ class Visualiser(object):
                 # Slice off EIEIO header and convert to numpy array of uint32
                 payload = np.fromstring(raw_data[6:], dtype="uint32")
 
-                # Create mask to select vision (rather than special event) packets
                 payload_value = payload & self.value_mask
                 vision_event_mask = payload_value >= SpecialEvent.max
+                # Payload is a pixel:
+                # Create mask to select vision (rather than special event) packets
 
                 # Extract coordinates
                 vision_payload = payload_value[vision_event_mask] - SpecialEvent.max
@@ -132,7 +133,7 @@ class Visualiser(object):
                     self.image_data[y, x] = c
                 except IndexError as e:
                     print("Packet contains invalid pixels:",
-                          vision_payload, x, y, c)
+                          vision_payload, "X:", x, "  Y:",y, " c:",c)
                     self.image_data[:-1, :] = 0
 
                 # Create masks to select score events and count them

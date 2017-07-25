@@ -1,10 +1,11 @@
 //
-//  Re-inforcement learning for BreakOut
+//  Re-enforcement learning for BreakOut
 //
 //
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
+//#include <stdfix-exp.h>
 
 // Spin 1 API includes
 #include <spin1_api.h>
@@ -42,59 +43,53 @@ typedef enum
 
 #define RLSTATE_WIDTH  (GAME_WIDTH>>4)
 #define RLSTATE_HEIGHT (GAME_HEIGHT>>4)
-#define NUM_ACTIONS 4
+#define ROUNDED_NUM_ACTIONS 4
+#define NUM_ACTIONS 3
 
 #define numGrids 1
 
-#define TICKS_PER_RESPONSE 100
+#define TICKS_PER_RESPONSE 14
 
-#define STATEVECTOR_NUM_WORDS 1
-
-#define CONSECUTIVE_MOVES 10 
-
+#define ELIG_TRACELIST_SZ 20
 
 // **** Change scale shift to change the coarseness of the state space ****
 // Image (and hence each state dimension) is scaled by 2 ** scale_shift.
-int scale_shift = 5;
-int scale;
-accum discount_rate = 0.8;
-accum alpha = 0.01;
-accum lambda = 0.95;
+int      scale_shift = 3;
+int      scale;
+accum    discount_rate = 0.9;
+accum    score_weighting = 0.1;
+accum    alpha  = 0.005;
+accum    elig_decay = 0.95;
+accum    scale_factor;
 static uint32_t key;
-uint32_t counter;
 uint32_t ticks;
 uint32_t score_up, score_down; 
-uint32_t cum_score_up, cum_score_down;
-accum    recent_reward_or_punishment;
 uint32_t new_key;
 uint32_t color_bit;
 uint32_t sz;
-int32_t change_y, change_x;
-int32_t ball_y, ball_x;
-int32_t bat_x;
-int32_t prev_ball_y, prev_ball_x;
-int32_t prev_bat_x;
-uint8_t  * pScreen[numGrids];
-accum *  pVbase;
+int32_t  new_y, new_x, change_x;
+int32_t  prev_ball_y, prev_ball_x;
+int32_t  prev_bat_x, bat_x_fine;
+int32_t  ball_y, ball_x;
+int32_t  bat_x, bat_x_fine;
+int32_t  bat_x_segment;
+int32_t  max_bat_x, max_ball_x, max_ball_y;
+uint32_t * pEligbase;
 accum *  pQbase;
-accum *  pEligbase;
-accum    v_value, q_value;
-accum    q_increment;
-accum    prev_v_value;
-uint32_t prev_state_index;
+accum    q_value, prev_q_value;
+accum    delta;
+accum    q_left, q_right, q_none;
+accum    left_prob, right_prob, none_prob;
+uint32_t q_index, prev_q_index;
 uint32_t state_index;
-accum    prev_q_value   = 0.0;
-uint32_t q_index        = 0;
-uint32_t prev_q_index   = 0;
-uint32_t prev_action    = KEY_NONE;
 uint32_t current_action = KEY_NONE;
-uint32_t next_action    = KEY_NONE;
+uint32_t prev_action    = KEY_NONE;
 uint32_t move_count;
+uint32_t greedy_move_count;
 uint32_t outcount       = 0;
+uint32_t eligcount      = 0;
 uint32_t value_statespace_elements;
 uint32_t action_elements, elements_per_action;
-accum    q_left, q_right, q_none;
-accum    q_left_n, q_right_n, q_none_n;
 uint32_t move_direction;
 uint32_t total_move_count = 0;
 uint32_t left_total = 0;
@@ -106,6 +101,7 @@ uint32_t bat_x_bit_start;
 uint32_t ball_x_bit_start;
 uint32_t ball_y_bit_start;
 uint32_t action_bit_start;
+accum    prob_greedy_action = 0.5;
 
 //! Should simulation run for ever? 0 if not
 static uint32_t infinite_run;
@@ -113,120 +109,301 @@ static uint32_t infinite_run;
 //! the number of timer ticks that this model should run for before exiting.
 static uint32_t simulation_ticks = 0;
 
-static inline accum get_random_prob()
+static accum get_random_prob()
 {
    uint32_t random_num;
    random_num = sark_rand()&0x7FFF;
    return (accum)random_num >> 15;
 }
 
-static inline int get_min_block_bits(num)
+static int get_min_block_bits(num)
 {
    float needed_bits = log2(num);
    return ceil(needed_bits);
 }
 
-static inline int get_power_of_2_block_sz(num)
+static int get_power_of_2_block_sz(num)
 {
    int   next_power_of_2 = get_min_block_bits(num);
    return pow(2, next_power_of_2);
 }
 
-static inline void add_score_up_event()
+static void add_score_up_event()
 {
   spin1_send_mc_packet(key | SPECIAL_EVENT_SCORE_UP, 0, NO_PAYLOAD);
   log_debug("Score up");
 }
 
+uint32_t create_index(int32_t bllx, int32_t blly, int32_t batx, int32_t action, int temp)
+{
+   uint32_t scrIdx = (bllx<<ball_x_bit_start) + (blly<<ball_y_bit_start) + 
+                     (batx<<bat_x_bit_start);
+   uint32_t actIdx = action * (1<<action_bit_start);
+
+   //log_info("%d : %d : %d - %d  = %d (%d)", bllx, blly, batx, action, actIdx + scrIdx, temp);
+   return actIdx + scrIdx;
+}
+
+accum get_q_value_from_state(bllx, blly, batx, a)
+{
+   // Create the index associated with the screen state (ball, bat)
+   // and that coming from the given action number:
+   uint32_t index = create_index(bllx, blly, batx, a, 1);
+
+   return *(pQbase + index);
+}
+
+accum get_q_value(uint32_t index)
+{
+   return *(pQbase + index);
+}
+
+void set_q_value(uint32_t index, accum newVal)
+{
+   *(pQbase + index) = newVal;
+}
+
+
 static bool initialize(uint32_t *timer_period)
 {
-  uint8_t * pMyScreen;
-  uint no_action_index, left_action_index, right_action_index;
-  accum no_action_rnd, left_action_rnd, right_action_rnd, sum;
-  accum normed_no_action_rnd, normed_left_action_rnd, normed_right_action_rnd;
-  int j;
-  scale = pow(2, scale_shift);
-  cum_score_up   = 0;
-  cum_score_down = 0;
-  log_info("Initialise of rlcontroller : started now!");
-  sark_srand(5);
-
-  // Get the address at which this core's DTCM data starts, from SRAM
-  address_t address = data_specification_get_data_address();
-
-  // Read the header
-  if (!data_specification_read_header(address))
-  {
-      return false;
-  }
-
-  // Get the timing details and set up the simulation interface
-  if (!simulation_initialise(data_specification_get_region(REGION_SYSTEM, address),
-    APPLICATION_NAME_HASH, timer_period, &simulation_ticks,
-    &infinite_run, 1, NULL, data_specification_get_region(REGION_PROVENANCE, address)))
-  {
-      return false;
-  }
-
-  // Read breakout region
-  address_t breakout_region = data_specification_get_region(REGION_BREAKOUT, address);
-  key = breakout_region[0];
-  log_info("\tKey=%08x", key);
-
-  log_info("Initialise: completed successfully");
-
-  // Reserve memory for game state tracking:
-  sz = GAME_HEIGHT/scale * GAME_WIDTH/scale;
-  pMyScreen = sark_alloc((int)sz, sizeof(uint8_t));
-  pScreen[0] = pMyScreen;
-  if (!pMyScreen) {
-     for (j=0; j<sz; j++)
-        *(pMyScreen + j) = (uint8_t) 0;
-  }
-
-  // Reserve memory in SDRAM for V and Q arrays:
-  bits_for_width  = get_min_block_bits(GAME_WIDTH/scale);
-  bits_for_height = get_min_block_bits(GAME_HEIGHT/scale);
-  bat_x_bit_start = 0;
-  ball_y_bit_start = bat_x_bit_start  + bits_for_width;
-  ball_x_bit_start = ball_y_bit_start + bits_for_height;
-  action_bit_start = ball_x_bit_start + bits_for_width;
-  value_statespace_elements = get_power_of_2_block_sz(GAME_WIDTH/scale) * 
-                              get_power_of_2_block_sz(GAME_HEIGHT/scale) * 
-                              get_power_of_2_block_sz(GAME_WIDTH/scale); // 16 * 8 * 16
-  log_info("Width: %d, height: %d", (GAME_WIDTH/scale), (GAME_HEIGHT/scale));
-  log_info("Scale shift: %d   scale: %d", scale_shift, scale);
-  log_info("Screen size: %d x %d = %d", GAME_WIDTH/scale, GAME_HEIGHT/scale, sz);
-  pVbase    = sark_xalloc(sv->sdram_heap, value_statespace_elements * 4, 0, ALLOC_LOCK);
-  pEligbase = sark_xalloc(sv->sdram_heap, value_statespace_elements * 4, 0, ALLOC_LOCK);
-  for (j=0; j<value_statespace_elements; j++) {
-      *(pVbase+j)    = sark_rand()>>24;
-      *(pEligbase+j) = (uint32_t) 0;
-  }
-
-  elements_per_action = value_statespace_elements;
-  action_elements = elements_per_action * NUM_ACTIONS;
-  log_info("Num actions: %d", NUM_ACTIONS);
-  log_info("Policy space: %d", action_elements);
-  log_info("Elements per action: %d", elements_per_action);
-  pQbase  = sark_xalloc(sv->sdram_heap, action_elements * sizeof(uint32_t), 0, ALLOC_LOCK);
-  for (j=0; j<elements_per_action; j++) {
-      no_action_rnd    = 1.0; // + get_random_prob()/4;
-      left_action_rnd  = 1.0; // + get_random_prob()/4;
-      right_action_rnd = 1.0; // + get_random_prob()/4;
-      sum = left_action_rnd + right_action_rnd + no_action_rnd;
-      normed_no_action_rnd = no_action_rnd;///sum;
-      normed_left_action_rnd = left_action_rnd;///sum;
-      normed_right_action_rnd = right_action_rnd;///sum;
-
-      *(pQbase+0*elements_per_action+j) = normed_left_action_rnd;
-      *(pQbase+1*elements_per_action+j) = normed_right_action_rnd;
-      *(pQbase+2*elements_per_action+j) = normed_no_action_rnd;
-      *(pQbase+3*elements_per_action+j) = 0;
-  }
-
-  return true;
+   accum no_action_rnd, left_action_rnd, right_action_rnd, sum;
+   accum normed_no_action_rnd, normed_left_action_rnd, normed_right_action_rnd;
+   int a, j;
+   scale = pow(2, scale_shift);
+   //log_info("Initialise of rlcontroller : started now!");
+   sark_srand(5);
+ 
+   // Get the address at which this core's DTCM data starts, from SRAM
+   address_t address = data_specification_get_data_address();
+ 
+   // Read the header
+   if (!data_specification_read_header(address))
+   {
+       return false;
+   }
+ 
+   // Get the timing details and set up the simulation interface
+   if (!simulation_initialise(data_specification_get_region(REGION_SYSTEM, address),
+     APPLICATION_NAME_HASH, timer_period, &simulation_ticks,
+     &infinite_run, 1, NULL, data_specification_get_region(REGION_PROVENANCE, address)))
+   {
+       return false;
+   }
+ 
+   // Read breakout region
+   address_t breakout_region = data_specification_get_region(REGION_BREAKOUT, address);
+   key = breakout_region[0];
+   //log_info("\tKey=%08x", key);
+ 
+   //log_info("Initialise: completed successfully");
+ 
+   // Reserve memory for game state tracking:
+   sz = GAME_HEIGHT/scale * GAME_WIDTH/scale;
+ 
+   // Reserve memory in SDRAM for V and Q arrays:
+   bits_for_width  = get_min_block_bits(GAME_WIDTH/scale);
+   bits_for_height = get_min_block_bits(GAME_HEIGHT/scale);
+   bat_x_bit_start = 0;
+   ball_y_bit_start = bat_x_bit_start  + bits_for_width;
+   ball_x_bit_start = ball_y_bit_start + bits_for_height;
+   action_bit_start = ball_x_bit_start + bits_for_width;
+   value_statespace_elements = get_power_of_2_block_sz(GAME_WIDTH/scale) * 
+                               get_power_of_2_block_sz(GAME_HEIGHT/scale) * 
+                               get_power_of_2_block_sz(GAME_WIDTH/scale); // 16 * 8 * 16
+ 
+   elements_per_action = value_statespace_elements;
+   action_elements = elements_per_action * ROUNDED_NUM_ACTIONS;
+   pQbase        = sark_xalloc(sv->sdram_heap, action_elements * sizeof(uint32_t), 0, ALLOC_LOCK);
+   pEligbase     = sark_alloc(ELIG_TRACELIST_SZ, sizeof(uint32_t));
+   for (j=0; j<elements_per_action; j++) {
+       *(pQbase+0*elements_per_action+j)    = 1.0k + get_random_prob();
+       *(pQbase+1*elements_per_action+j)    = 1.0k + get_random_prob();
+       *(pQbase+2*elements_per_action+j)    = 1.0k + get_random_prob();
+       *(pQbase+3*elements_per_action+j)    = 0;
+   }
+   for(j=0; j<ELIG_TRACELIST_SZ; j++)
+   {
+      *(pEligbase+j)= -1;
+   }
+   max_bat_x  = GAME_WIDTH/scale - 1;
+   max_ball_x = GAME_WIDTH/scale - 1;
+   max_ball_y = GAME_HEIGHT/scale - 1;
+   log_info("Q-value base address: 0x%x,  size (bytes)", pQbase, elements_per_action*12);
+   //log_info("Width: %d, height: %d", (GAME_WIDTH/scale), (GAME_HEIGHT/scale));
+   //log_info("Scale shift: %d   scale: %d", scale_shift, scale);
+   //log_info("Screen size: %d x %d = %d", GAME_WIDTH/scale, GAME_HEIGHT/scale, sz);
+   //log_info("Num actions: %d", NUM_ACTIONS);
+   //log_info("Elements per action: %d", elements_per_action);
+   return true;
 }
+
+bool check_for_game_state_change() {
+   if ((ball_x != prev_ball_x) || (ball_y != prev_ball_y) || (bat_x != prev_bat_x))
+   {
+      prev_ball_x = ball_x;
+      prev_ball_y = ball_y;
+      prev_bat_x  = bat_x;
+      return true;
+   }
+   else 
+      return false;
+}
+
+void select_action()
+{
+   accum random_action_choice, are_we_doing_greedy_action;
+   accum denom;
+   uint32_t action_index;
+
+   total_move_count++;
+
+   q_left  = get_q_value_from_state(ball_x, ball_y, bat_x, 0); // Left action
+   q_right = get_q_value_from_state(ball_x, ball_y, bat_x, 1); // Right action
+   q_none  = get_q_value_from_state(ball_x, ball_y, bat_x, 2); // None action
+
+   denom = q_left + q_right + q_none;
+   left_prob = q_left/denom;
+   right_prob = q_right/denom;
+   none_prob = q_none/denom;
+
+   are_we_doing_greedy_action = get_random_prob();
+   // Are we doing a random action or just picking whichever has highest q?
+   if (are_we_doing_greedy_action < prob_greedy_action)
+   {
+      greedy_move_count++;
+      move_count     = 60;
+      if ((left_prob > right_prob) && (left_prob > none_prob))
+      {
+         move_direction = KEY_LEFT;
+         q_value = q_left;
+         left_total++;
+      }
+      else if ((right_prob > left_prob) && (right_prob > none_prob))
+      {
+         move_direction = KEY_RIGHT;
+         q_value = q_right;
+         right_total++;
+      }
+      else // No action is currently best!
+      {
+         move_direction = KEY_NONE;
+         q_value = q_none;
+         none_total++;
+      }
+   }
+   else  // Do random action:
+   {
+      move_count     = (int)(get_random_prob()*80 + 40);
+      random_action_choice = get_random_prob();
+      if (random_action_choice < 0.4) {
+         move_direction = KEY_LEFT;
+         q_value = q_left;
+         left_total++;
+      }
+      else if (random_action_choice < 0.8) {
+         move_direction = KEY_RIGHT;
+         q_value = q_right;
+         right_total++;
+      }
+      else { 
+         move_direction = KEY_NONE;
+         q_value = q_none;
+         none_total++;
+      }
+   }
+   action_index = move_direction - 1;
+   q_index = create_index(ball_x, ball_y, bat_x, action_index, 2);
+}
+
+accum calculate_error_value()
+{
+   accum score = 10 * score_up - score_down;
+   score_up    = 0;
+   score_down  = 0;
+
+   return score_weighting * score + discount_rate * prev_q_value - q_value;
+}
+
+void advance_eligibility_list()
+{
+   int i;
+   for (i = ELIG_TRACELIST_SZ; i > 0; i--)
+   {
+     *(pEligbase + i) = *(pEligbase + i-1); 
+   }
+}
+
+// Update the elgibility trace list for the state we just recently:
+void add_latest_visited_state_to_list()
+{
+   // First advance the list by one, th create room for the new entry:
+   advance_eligibility_list();
+
+   // Now add the index of the new entry:
+   *(pEligbase) = q_index;
+}
+
+// Run through the list of recent visited (s,a) pairs and update their
+// Q values based on the latest delta:
+void perform_reinforcement_learning()
+{
+   int i;
+   uint32_t qa_state_index;
+   accum this_q_value, new_q_value;
+   accum elig_discount = 1;
+   accum change;
+   scale_factor = alpha * delta;
+
+   for (i=1; i<ELIG_TRACELIST_SZ;i++)
+   {
+      qa_state_index = *(pEligbase + i);
+      this_q_value = get_q_value(qa_state_index);
+      // Add scaled value based on the current error, delta
+      // and the decay of the elig trace:
+      change = scale_factor * elig_discount;
+      new_q_value = this_q_value + change;
+      if (new_q_value < 0.05)
+         new_q_value = 0.05;
+      //if (outcount == 4000)
+      //   log_info("Inc: %k", change);
+      // update the q value for this state-action pair:
+      set_q_value(qa_state_index, new_q_value);
+      
+      elig_discount = elig_discount * elig_decay;
+   }
+}
+
+void next_state()
+{
+   prev_q_value = q_value;
+   prev_q_index = q_index;
+}
+
+// XCV
+void choose_next_action_and_update_rl_state()
+{
+   /*int i;
+   eligcount++;
+   if (eligcount == 1000 || eligcount == 1001)
+   { 
+      log_info("Elig: %d", eligcount); 
+      for (i=0; i<ELIG_TRACELIST_SZ;i++)
+      {
+        log_info("E:%d", *(pEligbase + i)); 
+      }
+   }  */
+   // Choose action:
+   select_action();
+   // Calculate TD error, delta:
+   delta = calculate_error_value();
+   // Update trace for last state:
+   add_latest_visited_state_to_list();
+   // Do reinforcement learning across recently used state-action pairs:
+   perform_reinforcement_learning();
+   // update q value state to point to the newly select state-action pair:
+   next_state();
+}
+
 
 //----------------------------------------------------------------------------
 // Callbacks
@@ -234,17 +411,7 @@ static bool initialize(uint32_t *timer_period)
 
 void timer_callback(uint unused, uint dummy)
 {
-   uint32_t j;
-   accum random_policy_choice;
-   int chose = 0;
-   accum random_num, denom;
-   accum delta, frac_success;
-   accum left_prob, right_prob, none_prob;
-   uint action_selected;
-   uint no_action_index, left_action_index, right_action_index;
-
    ticks ++;
-   counter ++;
 
    if (!infinite_run && (ticks - 1) >= simulation_ticks)
    {
@@ -252,189 +419,93 @@ void timer_callback(uint unused, uint dummy)
       // go into pause and resume state to avoid another tick
       simulation_handle_pause_resume(NULL);
 
-      log_info("Exiting on timer.");
+      //log_info("Exiting on timer.");
       return;
    }
-   // Otherwise
-   else
-   {
-      if (move_count > 0 && move_direction == KEY_LEFT) {
-         spin1_send_mc_packet(key | KEY_LEFT, 0, NO_PAYLOAD);
-         move_count--; 
-      } else if (move_count > 0  && move_direction == KEY_RIGHT) {
-         spin1_send_mc_packet(key | KEY_RIGHT, 0, NO_PAYLOAD);
-         move_count--; 
-      }
 
-      // -----------------------------------
-      // If we've moved, update the state functions:
-      if ((ball_x != prev_ball_x) || (ball_y != prev_ball_y) || (bat_x != prev_bat_x)) {
-         total_move_count++;
-         // what score change has happened since the last state change:
-         cum_score_up += score_up;
-         cum_score_down += score_down;
-         recent_reward_or_punishment = 3*score_up - score_down;
-         score_up   = 0;
-         score_down = 0;
-
-         // We're in a new state. Update V & Q fields:
-         // Construct state vectors and retrieve current value:
-         prev_state_index = ((prev_ball_x>>scale_shift)<<ball_x_bit_start) + 
-                            ((prev_ball_y>>scale_shift)<<ball_y_bit_start) + 
-                            ((prev_bat_x>>bat_x_bit_start));
-         prev_v_value = *(pVbase + prev_state_index);
-         prev_q_index = ((prev_ball_x>>scale_shift)<<ball_x_bit_start) + 
-                        ((prev_ball_y>>scale_shift)<<ball_y_bit_start) + 
-                        ((prev_bat_x>>scale_shift)<<bat_x_bit_start)   +
-                        prev_action*elements_per_action;
-
-         state_index = ((ball_x>>scale_shift)<<ball_x_bit_start) + 
-                       ((ball_y>>scale_shift)<<ball_y_bit_start) + 
-                       ((bat_x>>scale_shift)<<bat_x_bit_start);
-         v_value = *(pVbase + state_index);
-
-         if (ball_x < 0 || ball_x > 159 || ball_y < 0 || ball_y > 159 || ball_x < 0 || ball_x > 159) {
-            log_info("Out of range!");
-         }
-
-         // -----------------------------------
-         // Select new action:
-         // Get Pi values for each possible action:
-         left_action_index  = (0<<action_bit_start) + ((ball_x>>scale_shift)<<ball_x_bit_start) + 
-                                                      ((ball_y>>scale_shift)<<ball_y_bit_start) + 
-                                                      ((bat_x>>scale_shift)<<bat_x_bit_start);
-         right_action_index = (1<<action_bit_start) + left_action_index;
-         no_action_index    = (1<<action_bit_start) + right_action_index;
-         q_left  = *(pQbase + left_action_index);
-         q_right = *(pQbase + right_action_index);
-         q_none  = *(pQbase + no_action_index);
-
-         // ***** Softmax function ******
-         // This *is* required, as the current scheme fails when any of the three variables goes negative,
-         // it just never gets picked again!
-         // So we need to add an Exp function.
-         //denom = exp(q_left) + exp(q_right) + exp(q_none);
-         //left_prob = exp(q_left)/denom;
-         //right_prob = exp(q_right)/denom;
-         //none_prob = exp(q_none)/denom;
-         // *****************************
-
-         // Linearised probability model (no exp, but doesn't work well!)
-         denom = q_left + q_right + q_none;
-         left_prob = q_left/denom;
-         right_prob = q_right/denom;
-         none_prob = q_none/denom;
-
-         // Chose the action based on soft-max of their Q values:
-         if (random_policy_choice < left_prob) {
-            move_direction = KEY_LEFT;
-            left_total++;
-         }
-         else if (random_policy_choice < (left_prob+right_prob)) {
-            move_direction = KEY_RIGHT;
-            right_total++;
-         }
-         else { 
-            move_direction = KEY_NONE;
-            none_total++;
-         }
-         move_count = 40+(int)(get_random_prob()*100);
-         current_action = move_direction - 1; 
-
-         // -----------------------------------
-         // Update Q value using SARSA rule:
-         // Old index and Q value:
-         prev_q_index = ((prev_ball_x>>scale_shift)<<ball_x_bit_start) + 
-                        ((prev_ball_y>>scale_shift)<<ball_y_bit_start) + 
-                        ((prev_bat_x>>scale_shift)<<bat_x_bit_start) + 
-                          prev_action*elements_per_action;
-         prev_q_value = *(pQbase + prev_q_index);
-         // New index and q-value:
-         q_index = ((ball_x>>scale_shift)<<ball_x_bit_start) + 
-                   ((ball_y>>scale_shift)<<ball_y_bit_start) + 
-                   ((bat_x>>scale_shift)<<bat_x_bit_start)   + 
-                     current_action*elements_per_action;
-         q_value = *(pQbase + q_index);
-
-         // Update old q-value (SARSA rule):
-         q_increment = alpha * (recent_reward_or_punishment + discount_rate * q_value - prev_q_value);
-         *(pQbase + prev_q_index) = *(pQbase + prev_q_index) + q_increment;
-
-         // -----------------------------------
-         // Copy new state to the previous one:
-         prev_ball_x = ball_x;
-         prev_ball_y = ball_y;
-         prev_bat_x  = bat_x;
-         prev_action = current_action;
-      }
+   // Perform action is we have one ongoing:
+   if (move_count > 0 && move_direction == KEY_LEFT) {
+      spin1_send_mc_packet(key | KEY_LEFT, 0, NO_PAYLOAD);
+      move_count--; 
+   } else if (move_count > 0  && move_direction == KEY_RIGHT) {
+      spin1_send_mc_packet(key | KEY_RIGHT, 0, NO_PAYLOAD);
+      move_count--; 
    }
+
    outcount ++;
-   if (outcount > 10000) {
+   if (outcount > 20000) {
       outcount = 0;
-      log_info("Mvcount: %d, Move: %d, Ball: %d:%d  Bat: %d   L: %d, R:%d, N:%d", 
-                total_move_count, move_direction, ball_x, ball_y, bat_x, 
-                left_total, right_total, none_total);
-      log_info("p-left: %k, p-right: %k, p-none: %k,  Q-inc: %k", left_prob, right_prob, none_prob, q_increment);
+      if (prob_greedy_action < 0.9)
+         prob_greedy_action += 0.0001;
+
+      //log_info("Mvcount: %d, Move: %d, Ball: %d:%d  Bat: %d (%d, %d)  L: %d, R:%d, N:%d", 
+      //          total_move_count, move_direction, ball_x, ball_y, bat_x, bat_x_fine, bat_x_segment,
+      //          left_total, right_total, none_total);
+      //log_info("Scale factor: %k", scale_factor);
+      //log_info("p-greed: %k", prob_greedy_action);
+      //log_info("p-left: %k, p-right: %k, p-none: %k,  Delta: %k p-greed: %k", left_prob, right_prob, none_prob, delta, prob_greedy_action);
+      log_info("q-left: %k, q-right: %k, q-none: %k", q_left, q_right, q_none);
+      log_info("tot mov: %d  greedy moves: %d (greedy prob: %k)", total_move_count, greedy_move_count, prob_greedy_action);
    }
 }
+
 
 // Process incoming packets, either concrning screen info (bat or ball position) or 
 // reward/penalty info.
 void mc_packet_received_callback(uint key, uint payload)
 {
-  use(payload);
-  //log_info("Packet received %08x", key);
-  new_key = key & 0xFFFFF;
-  //if (((key >> 17) & 0x3) == SPECIAL_EVENT_MAX)
-  if (new_key  >= SPECIAL_EVENT_MAX)
-  { 
-     color_bit = new_key & 0x1;
-     // Only track solid objects, not background:
-     if (color_bit) {
-        change_y = (new_key >> 1) & 0xFF;
-        change_x = (new_key >> 9) & 0xFF;
-
-        // update bat and ball co-ordinates:
-        if (change_y == (GAME_HEIGHT -1)) {
-           // movement is the bat:
-           bat_x = change_x>>scale_shift;
-           if (bat_x <0)
-              bat_x = 0;
-           if (bat_x > 9)
-              bat_x = 9;
-        }
-        else {
-           // Change is the ball:
-           // Update ball position:
-           ball_y = change_y>>scale_shift;
-           ball_x = change_x>>scale_shift;
-           if (ball_x <0)
-              ball_x = 0;
-           if (ball_x > 9)
-              ball_x = 9;
-           if (ball_y <0)
-              ball_y = 0;
-           if (ball_y > 7)
-              ball_y = 7;
-        }
-     }
-  }
-  else
-  {
-    // Reward/punishment:
-    if (new_key == SPECIAL_EVENT_SCORE_UP){
-        score_up++;
-        //log_info("+");
-    }
-    else if (new_key == SPECIAL_EVENT_SCORE_DOWN) {
-        score_down++;
-        //log_info("-");
-    }
-  }  
-  //(SPECIAL_EVENT_MAX + (i << 9) + (j << 1) + colour_bit);
-
-
-/* SD: Insert stuff here */
+   use(payload);
+   new_key = key & 0xFFFFF;
+   if (new_key  >= SPECIAL_EVENT_MAX)
+   { 
+      color_bit = new_key & 0x1;
+      // Only track solid objects, not background:
+      if (color_bit == 1)
+      {
+         new_y = ((new_key >> 1) & 0xFF) - 1;
+         new_x = (new_key >> 9) & 0xFF;
+ 
+         //==============================================
+         // update bat and ball co-ordinates:
+         if (new_y == (GAME_HEIGHT -1)) {
+            // Movement is probably the bat:
+            bat_x_fine = new_x;
+            if (bat_x_fine < 0)
+               bat_x = 0;
+            else if (bat_x_fine > max_bat_x<<scale_shift)
+               bat_x = max_bat_x;
+            else
+               bat_x = bat_x_fine>>scale_shift;
+         }
+         else {
+            // Change is the ball:
+            // Update ball position:
+            ball_y = new_y>>scale_shift;
+            ball_x = new_x>>scale_shift;
+            if (ball_x <0)
+               ball_x = 0;
+            if (ball_x > max_ball_x)
+               ball_x = max_ball_x;
+            if (ball_y <0)
+               ball_y = 0;
+            if (ball_y > max_ball_y)
+               ball_y = max_ball_y;
+         }
+         //==============================================
+      }
+      // If the game state has changed, update the RL state:
+      if (check_for_game_state_change())
+         choose_next_action_and_update_rl_state();
+      }
+   else // Reward/punishment:
+   {
+      if (new_key == SPECIAL_EVENT_SCORE_UP){
+         score_up++;
+      }
+      else if (new_key == SPECIAL_EVENT_SCORE_DOWN) {
+         score_down++;
+      }
+   }  
 }
 
 //----------------------------------------------------------------------------
@@ -442,12 +513,11 @@ void mc_packet_received_callback(uint key, uint payload)
 //----------------------------------------------------------------------------
 void c_main(void)
 {
-  int i,j;
   // Load DTCM data
   uint32_t timer_period;
   if (!initialize(&timer_period))
   {
-    log_error("Error in initialisation - exiting!");
+    //log_error("Error in initialisation - exiting!");
     rt_error(RTE_SWERR);
     return;
   }
@@ -457,91 +527,26 @@ void c_main(void)
   tick_in_frame = 0;
 */
   // Set timer tick (in microseconds)
-  spin1_set_timer_tick(1000);
+  spin1_set_timer_tick(timer_period);
+  //log_info("Timer period: %d", timer_period);
 
   // Register callback
   spin1_callback_on(TIMER_TICK, timer_callback, 2);
   spin1_callback_on(MC_PACKET_RECEIVED, mc_packet_received_callback, -1);
 
   ticks = 0;
-  counter = 0;
   color_bit = -1;
-  i = -1;
-  j = -1;
   score_up   = 0;
   score_down = 0;
   move_count = 0;
+  greedy_move_count = 0;
   move_direction = KEY_LEFT;
   ball_x = 1;
   ball_y = 8;
   bat_x =  1;
   outcount = 0;
+  eligcount=0;
 
   simulation_run();
-
-  // Free the screen memory:
-  for(i=0; i<numGrids; i++) {
-     sark_free(pScreen[i]);
-  }
-  
 }
 
-/*
-         // Calculate the new error (delta):
-         delta = recent_reward_or_punishment + discount_rate * v_value - prev_v_value;
-         log_info("Val: %k reward: %k, delta: %k", v_value, recent_reward_or_punishment, delta);
-
-         // Update the eligability value for this new state as we've visited it:
-         *(pEligbase+state_index) = *(pEligbase+state_index) + 1.0;
-
-         // Update all V values with this error (delta) based on their eligability:
-         for (j=0; j<value_statespace_elements; j++) {
-            *(pVbase+j) += alpha * delta * *(pEligbase+j);
-            *(pEligbase+j) = discount_rate * lambda * *(pEligbase+j);
-         }
-*/
-
-/*
-      // Every few ticks, make an action:
-      if (counter >= TICKS_PER_RESPONSE)
-      {
-         // Construct state vectors and retrieve current value:
-         state_index = ((ball_x>>4)<<7) + ((ball_y>>4)<<4) + ((bat_x>>4));
-         v_value = *(pVbase + state_index);
-         // Get Pi values for each possible action:
-         left_action_index  = (0<<11) + ((ball_x>>4)<<7) + ((ball_y>>4)<<4) + ((bat_x>>4));
-         right_action_index = (1<<11) + ((ball_x>>4)<<7) + ((ball_y>>4)<<4) + ((bat_x>>4));
-         no_action_index    = (2<<11) + ((ball_x>>4)<<7) + ((ball_y>>4)<<4) + ((bat_x>>4));
-         pi_left  = *(pQbase + left_action_index);
-         pi_right = *(pQbase + right_action_index);
-         pi_none  = *(pQbase + no_action_index);
-         //pi_left  = *(pQbase + 10);
-         //pi_right = *(pQbase + 110);
-         //pi_none  = *(pQbase + 200);
-         //log_info("BallX: %d  BallY: %d  BatX: %d", ball_x, ball_y, bat_x);
-
-         // Choose an action:
-         move_count = 40; // We'll do the selected action twenty times.
-         random_uint32 = sark_rand()>>16;
-         random_num = (accum)(random_uint32)/0xFFFF;
-         if (pi_left > random_num) {
-            // Go left
-            move_direction = KEY_LEFT;
-            //log_info("Left");
-         } else if ((pi_left + pi_right) > random_num) {
-            // Go right
-            move_direction = KEY_RIGHT;
-            //log_info("Right");
-         } else {
-            // Don't move
-            move_direction = KEY_NONE;
-            //log_info("None");
-         }
-         counter = 0;
-         //outcount ++;
-         //if (outcount > 40) {
-         //    outcount = 0;
-         //    log_info("Random accum: %k, direction: %d ", random_num, move_direction);
-         //}
-      }
-*/

@@ -10,8 +10,6 @@ from pacman.model.resources.resource_container import ResourceContainer
 from pacman.model.resources.sdram_resource import SDRAMResource
 
 # SpinnFrontEndCommon imports
-from spinn_front_end_common.abstract_models\
-    .abstract_binary_uses_simulation_run import AbstractBinaryUsesSimulationRun
 from spinn_front_end_common.abstract_models \
     .abstract_generates_data_specification \
     import AbstractGeneratesDataSpecification
@@ -26,6 +24,8 @@ from pacman.model.constraints.key_allocator_constraints\
 from spinn_front_end_common.interface.simulation import simulation_utilities
 from spinn_front_end_common.utilities import constants as\
     front_end_common_constants
+from spinn_front_end_common.utilities.utility_objs.executable_start_type \
+    import ExecutableStartType
 
 # sPyNNaker imports
 from spynnaker.pyNN.models.common.population_settable_change_requires_mapping \
@@ -49,7 +49,7 @@ class BreakoutSynapseType(object):
 class Breakout(
     ApplicationVertex, AbstractGeneratesDataSpecification,
     AbstractHasAssociatedBinary, AbstractProvidesOutgoingPartitionConstraints,
-    PopulationSettableChangeRequiresMapping, AbstractBinaryUsesSimulationRun):
+    PopulationSettableChangeRequiresMapping):
 
     BREAKOUT_REGION_BYTES = 4
     WIDTH_PIXELS = 160
@@ -101,7 +101,7 @@ class Breakout(
     def n_atoms(self):
         # **TODO** should we calculate this automatically
         # based on log2 of width and height?
-        return 2 + (256 * 256 * 2)
+        return 2 + (256 * 256 * 2) * 4
 
     # ------------------------------------------------------------------------
     # AbstractGeneratesDataSpecification overrides
@@ -160,6 +160,10 @@ class Breakout(
     @overrides(AbstractHasAssociatedBinary.get_binary_file_name)
     def get_binary_file_name(self):
         return "breakout.aplx"
+
+    @overrides(AbstractHasAssociatedBinary.get_binary_start_type)
+    def get_binary_start_type(self):
+        return ExecutableStartType.USES_SIMULATION_INTERFACE
 
     # ------------------------------------------------------------------------
     # AbstractProvidesOutgoingPartitionConstraints overrides
