@@ -6,6 +6,8 @@ from breakout_utils import get_punishment_neuron_id, get_reward_neuron_id
 from spynnaker_external_devices_plugin.pyNN.connections.\
     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
 from spynnaker_external_devices_plugin.pyNN.spynnaker_external_device_plugin_manager import SpynnakerExternalDevicePluginManager as ex
+import spynnaker_external_devices_plugin.pyNN as ex
+import spinn_controller
 import spinn_breakout
 
 # Layout of pixels
@@ -87,8 +89,14 @@ pyramidal_lif = {'cm': 0.75,
 rate_weight = 1.5
 rate_delay = 16.
 
+### Hold:
+###controller_sink = sim.Population(1, sim.IF_curr_exp, {}, label="sink")
+###sim.Projection(controller_pop, controller_sink, sim.OneToOneConnector(1), label='sink connection')
+
 # Create breakout population and activate live output for it
 breakout_pop = sim.Population(1, spinn_breakout.Breakout, {}, label="breakout")
+controller_pop = sim.Population(1, spinn_controller.RLController, {}, label="controller")
+sim.Projection(controller_pop, breakout_pop, sim.FromListConnector([(0,0,1,1),(1,1,1,1)]), label='controlOut')
 ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=breakout_port)
 # Create key input population
 paddle_controller = sim.Population(2, sim.IF_curr_exp_supervision, cell_params_lif, label="key_input")

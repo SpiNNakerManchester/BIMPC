@@ -458,8 +458,6 @@ void mc_packet_received_callback(uint key, uint payload)
    new_key = key & 0xFFFFF;
    if (new_key  >= SPECIAL_EVENT_MAX)
    {
-
-
       color_bit = new_key & 0x1;
       // Only track solid objects, not background:
       if (color_bit == 1)

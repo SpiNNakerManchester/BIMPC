@@ -31,7 +31,7 @@
 #define OUT_OF_PLAY 100
 
 // Frame delay (ms)
-#define FRAME_DELAY 14//20
+#define FRAME_DELAY 14 //14//20
 
 // ball position and velocity scale factor
 #define FACT 16
@@ -73,7 +73,9 @@ typedef enum
 //----------------------------------------------------------------------------
 // Globals
 //----------------------------------------------------------------------------
-int game_width, game_height;
+uint ticks;
+uint pkt_count;
+
 // initial ball coordinates in fixed-point
 static int x = (GAME_WIDTH / 4) * FACT;
 static int y = (GAME_HEIGHT / 2) * FACT;
@@ -110,22 +112,25 @@ static uint32_t simulation_ticks = 0;
 static uint32_t tick_in_frame = 0;
 
 uint32_t left_key_count, right_key_count;
+uint32_t move_count_r = 0;
+uint32_t move_count_l = 0;
 
 //ratio used in randomising initial x coordinate
 static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH*FACT);
+
 
 //----------------------------------------------------------------------------
 // Inline functions
 //----------------------------------------------------------------------------
 static inline void add_score_up_event()
 {
-  spin1_send_mc_packet(key | SPECIAL_EVENT_SCORE_UP, 0, NO_PAYLOAD);
+  spin1_send_mc_packet(key | (SPECIAL_EVENT_SCORE_UP), 0, NO_PAYLOAD);
   log_debug("Score up");
 }
 
 static inline void add_score_down_event()
 {
-  spin1_send_mc_packet(key | SPECIAL_EVENT_SCORE_DOWN, 0, NO_PAYLOAD);
+  spin1_send_mc_packet(key | (SPECIAL_EVENT_SCORE_DOWN), 0, NO_PAYLOAD);
   log_debug("Score down");
 }
 
@@ -175,19 +180,23 @@ static void update_frame ()
   // Cache old bat position
   const int old_xbat = x_bat;
 
-  if (left_key_count > right_key_count)
+  if (left_key_count > right_key_count) {
     keystate |= KEY_LEFT;
-  else if (right_key_count > left_key_count)
+    move_count_l++;
+  }
+  else if (right_key_count > left_key_count) {
     keystate |= KEY_RIGHT;
+    move_count_r++;
+  }
 
   // Update bat and clamp
   if (keystate & KEY_LEFT && --x_bat < 0)
   {
     x_bat = 0;
   }
-  else if (keystate & KEY_RIGHT && ++x_bat > GAME_WIDTH-bat_len)
+  else if (keystate & KEY_RIGHT && ++x_bat > GAME_WIDTH-bat_len-1)
   {
-    x_bat = GAME_WIDTH-bat_len;
+    x_bat = GAME_WIDTH-bat_len-1;
   }
 
   // Clear keystate
@@ -223,13 +232,22 @@ static void update_frame ()
 
     // move ball in x and bounce off sides
     x += u;
-    if ((x < -u) || (x >= ((GAME_WIDTH*FACT)-u)))
+    if (x < -u)
+    {
+      u = -u;
+    }
+    if (x >= ((GAME_WIDTH*FACT)-u))
     {
       u = -u;
     }
 
     // move ball in y and bounce off top
     y += v;
+    // if ball entering bottom row, keep it out XXX SD
+    if (y == GAME_HEIGHT-1)
+    {
+      y = GAME_HEIGHT;
+    }
     if (y < -v)
     {
       v = -v;
@@ -269,7 +287,9 @@ static void update_frame ()
       v = -1 * FACT;
       y = (GAME_HEIGHT / 2)*FACT;
       //randomises initial x location
-      x = (int)(mars_kiss32()/x_ratio);
+      x = 160;
+      while (x==160)
+         x = (int)(mars_kiss32()/x_ratio);
       out_of_play = OUT_OF_PLAY;
       
       // Decrease score
@@ -289,7 +309,7 @@ static void update_frame ()
 
 static bool initialize(uint32_t *timer_period)
 {
-  log_info("Initialise: started");
+  log_info("Initialise breakout: started");
 
   // Get the address this core's DTCM data starts at from SRAM
   address_t address = data_specification_get_data_address();
@@ -303,7 +323,7 @@ static bool initialize(uint32_t *timer_period)
   // Get the timing details and set up the simulation interface
   if (!simulation_initialise(data_specification_get_region(REGION_SYSTEM, address),
     APPLICATION_NAME_HASH, timer_period, &simulation_ticks,
-    &infinite_run, 1, data_specification_get_region(REGION_PROVENANCE, address)))
+    &infinite_run, 1, NULL, data_specification_get_region(REGION_PROVENANCE, address)))
   {
       return false;
   }
@@ -311,11 +331,8 @@ static bool initialize(uint32_t *timer_period)
   // Read breakout region
   address_t breakout_region = data_specification_get_region(REGION_BREAKOUT, address);
   key = breakout_region[0];
-  game_width = breakout_region[1];
-  game_height = breakout_region[2];
   log_info("\tKey=%08x", key);
-  log_info("\game_width=%08x", game_width);
-  log_info("\game_height=%08x", game_height);
+  log_info("\tTimer period=%d", *timer_period);
 
   log_info("Initialise: completed successfully");
 
@@ -337,13 +354,18 @@ static bool initialize(uint32_t *timer_period)
     if (port == 7) spin1_exit (0);
 }*/
 
-void timer_callback(uint ticks, uint dummy)
+void timer_callback(uint unused, uint dummy)
 {
   // If a fixed number of simulation ticks are specified and these have passed
-  // **NOTE** ticks starts at 1!
+  ticks++;
+
   if (!infinite_run && (ticks - 1) >= simulation_ticks)
   {
-    spin1_pause();
+    //spin1_pause();
+    // go into pause and resume state to avoid another tick
+    simulation_handle_pause_resume(NULL);
+
+    log_info("Exiting on timer.");
     return;
   }
   // Otherwise
@@ -353,6 +375,7 @@ void timer_callback(uint ticks, uint dummy)
     tick_in_frame++;
     if(tick_in_frame == FRAME_DELAY)
     {
+      //log_info("pkts: %u   L: %u   R: %u", pkt_count, move_count_l, move_count_r);
       // If this is the first update, draw bat as
       // collision detection relies on this
       if(ticks == FRAME_DELAY)
@@ -374,19 +397,62 @@ void timer_callback(uint ticks, uint dummy)
 void mc_packet_received_callback(uint key, uint payload)
 {
   use(payload);
-  log_debug("Packet received %08x", key);
+
+  uint stripped_key = key & 0xFFFFF;
+  pkt_count++;
 
   // Left
-  if(key & KEY_LEFT)
+  if(stripped_key & KEY_LEFT)
   {
     left_key_count++;
   }
   // Right
-  else
+  else if (stripped_key & KEY_RIGHT)
   {
     right_key_count++;
   }
 }
+//-------------------------------------------------------------------------------
+
+INT_HANDLER sark_int_han (void);
+
+
+void rte_handler (uint code)
+{
+  // Save code
+
+  sark.vcpu->user0 = code;
+  sark.vcpu->user1 = (uint) sark.sdram_buf;
+
+  // Copy ITCM to SDRAM
+
+  sark_word_cpy (sark.sdram_buf, (void *) ITCM_BASE, ITCM_SIZE);
+
+  // Copy DTCM to SDRAM
+
+  sark_word_cpy (sark.sdram_buf + ITCM_SIZE, (void *) DTCM_BASE, DTCM_SIZE);
+
+  // Try to re-establish consistent SARK state
+
+  sark_vic_init ();
+
+  sark_vic_set ((vic_slot) sark_vec->sark_slot, CPU_INT, 1, sark_int_han);
+
+  uint *stack = sark_vec->stack_top - sark_vec->svc_stack;
+
+  stack = cpu_init_mode (stack, IMASK_ALL+MODE_IRQ, sark_vec->irq_stack);
+  stack = cpu_init_mode (stack, IMASK_ALL+MODE_FIQ, sark_vec->fiq_stack);
+  (void)  cpu_init_mode (stack, IMASK_ALL+MODE_SYS, 0);
+
+  cpu_set_cpsr (MODE_SYS);
+
+  // ... and sleep
+
+  while (1)
+    cpu_wfi ();
+}
+
+//-------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------
 // Entry point
@@ -405,6 +471,7 @@ void c_main(void)
   init_frame();
   keystate = 0; // IDLE
   tick_in_frame = 0;
+  pkt_count = 0;
 
   // Set timer tick (in microseconds)
   spin1_set_timer_tick(timer_period);
@@ -412,6 +479,8 @@ void c_main(void)
   // Register callback
   spin1_callback_on(TIMER_TICK, timer_callback, 2);
   spin1_callback_on(MC_PACKET_RECEIVED, mc_packet_received_callback, -1);
+
+  ticks = UINT32_MAX;
 
   simulation_run();
 }
