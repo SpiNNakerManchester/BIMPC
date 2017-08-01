@@ -323,7 +323,7 @@ static bool initialize(uint32_t *timer_period)
   // Get the timing details and set up the simulation interface
   if (!simulation_initialise(data_specification_get_region(REGION_SYSTEM, address),
     APPLICATION_NAME_HASH, timer_period, &simulation_ticks,
-    &infinite_run, 1, NULL, data_specification_get_region(REGION_PROVENANCE, address)))
+    &infinite_run, 1, data_specification_get_region(REGION_PROVENANCE, address)))
   {
       return false;
   }

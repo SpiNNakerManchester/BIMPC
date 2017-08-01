@@ -181,8 +181,8 @@ class Breakout(
             BreakoutMachineVertex._BREAKOUT_REGIONS.BREAKOUT.value)
         spec.write_value(routing_info.get_first_key_from_pre_vertex(
             vertex, constants.SPIKE_PARTITION_ID))
-        spec.write_value(self.width)
-        spec.write_value(self.height)
+        # spec.write_value(self.width)
+        # spec.write_value(self.height)
 
         # End-of-Spec:
         spec.end_specification()

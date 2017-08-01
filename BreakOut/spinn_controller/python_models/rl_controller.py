@@ -1,8 +1,11 @@
 # PACMAN imports
+from spynnaker.pyNN.models.common.population_settable_change_requires_mapping import \
+    PopulationSettableChangeRequiresMapping
+
 from pacman.executor.injection_decorator import inject_items
+from pacman.model.constraints.key_allocator_constraints import ContiguousKeyRangeContraint
 from pacman.model.decorators.overrides import overrides
-from pacman.model.graphs.application.impl.application_vertex import \
-    ApplicationVertex
+from pacman.model.graphs.application import ApplicationVertex
 from pacman.model.resources.cpu_cycles_per_tick_resource import \
     CPUCyclesPerTickResource
 from pacman.model.resources.dtcm_resource import DTCMResource
@@ -11,27 +14,29 @@ from pacman.model.resources.sdram_resource import SDRAMResource
 
 # SpinnFrontEndCommon imports
 from spinn_front_end_common.abstract_models \
+    .abstract_binary_uses_simulation_run import AbstractBinaryUsesSimulationRun
+from spinn_front_end_common.abstract_models \
     .abstract_generates_data_specification \
     import AbstractGeneratesDataSpecification
 from spinn_front_end_common.abstract_models.abstract_has_associated_binary \
     import AbstractHasAssociatedBinary
-from spinn_front_end_common.abstract_models.\
+from spinn_front_end_common.abstract_models. \
     abstract_provides_outgoing_partition_constraints import \
     AbstractProvidesOutgoingPartitionConstraints
-from pacman.model.constraints.key_allocator_constraints\
-    .key_allocator_contiguous_range_constraint \
-    import KeyAllocatorContiguousRangeContraint
+
 from spinn_front_end_common.interface.simulation import simulation_utilities
-from spinn_front_end_common.utilities import constants as\
+from spinn_front_end_common.utilities import constants as \
     front_end_common_constants
 from spinn_front_end_common.utilities.utility_objs.executable_start_type \
     import ExecutableStartType
 
 # sPyNNaker imports
-from spynnaker.pyNN.models.common.population_settable_change_requires_mapping \
-    import PopulationSettableChangeRequiresMapping
+from spynnaker.pyNN.models.abstract_models import AbstractAcceptsIncomingSynapses
+from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
 from spynnaker.pyNN.utilities import constants
 
+# Breakout imports
+# from breakout_machine_vertex import BreakoutMachineVertex
 # Breakout imports
 from rl_controller_machine_vertex import RLControllerMachineVertex
 
@@ -49,7 +54,28 @@ class BreakoutSynapseType(object):
 class RLController(
     ApplicationVertex, AbstractGeneratesDataSpecification,
     AbstractHasAssociatedBinary, AbstractProvidesOutgoingPartitionConstraints,
+    AbstractAcceptsIncomingSynapses,
     PopulationSettableChangeRequiresMapping):
+
+    def get_connections_from_machine(self, transceiver, placement, edge, graph_mapper, routing_infos,
+                                     synapse_information, machine_time_step):
+        super(RLController, self).get_connections_from_machine(transceiver, placement, edge, graph_mapper, routing_infos,
+                                                           synapse_information, machine_time_step)
+
+    def set_synapse_dynamics(self, synapse_dynamics):
+        pass
+
+    def add_pre_run_connection_holder(self, connection_holder, projection_edge, synapse_information):
+        super(RLController, self).add_pre_run_connection_holder(connection_holder, projection_edge, synapse_information)
+
+    def get_binary_start_type(self):
+        super(RLController, self).get_binary_start_type()
+    #
+    # def requires_mapping(self):
+    #     pass
+
+    def clear_connection_cache(self):
+        pass
 
     BREAKOUT_REGION_BYTES = 4
     WIDTH_PIXELS = 160
@@ -169,4 +195,4 @@ class RLController(
     @overrides(AbstractProvidesOutgoingPartitionConstraints.
                get_outgoing_partition_constraints)
     def get_outgoing_partition_constraints(self, partition):
-        return [KeyAllocatorContiguousRangeContraint()]
+        return [ContiguousKeyRangeContraint()]

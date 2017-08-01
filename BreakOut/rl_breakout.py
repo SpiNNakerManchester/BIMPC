@@ -1,12 +1,11 @@
-import spynnaker.pyNN as sim
+import spynnaker7.pyNN as sim
 from breakout_utils import get_punishment_neuron_id, get_reward_neuron_id
-from pacman.model.constraints.partitioner_constraints.partitioner_maximum_size_constraint import \
-    PartitionerMaximumSizeConstraint
 from spynnaker_external_devices_plugin.pyNN.connections. \
     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
 import spynnaker_external_devices_plugin.pyNN as ex
 import spinn_controller
 import spinn_breakout
+from spinn_breakout.visualiser.visualiser import Visualiser
 import numpy as np
 # from vision.sim_tools.connectors.direction_connectors_rob import    paddle_connection#, direction_connection,subsample_connection,
 from vision.sim_tools.connectors.direction_connectors import direction_connection_angle, subsample_connection, \
@@ -105,7 +104,7 @@ key_input_connection.add_start_callback("key_input", send_input)
 #
 
 # Create visualiser
-visualiser_full = spinn_breakout.Visualiser(
+visualiser_full = Visualiser(
     breakout_port, key_input_connection,
     x_res=X_RESOLUTION, y_res=Y_RESOLUTION,
     x_bits=X_BITS, y_bits=Y_BITS)
