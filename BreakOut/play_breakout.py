@@ -1,7 +1,7 @@
 try:
     from pyNN import spiNNaker as sim
 except:
-    import spynnaker.pyNN as sim
+    import spynnaker7.pyNN as sim
 import copy
 from vision.retina import Retina, dvs_modes, MERGED
 ### MERGED means neuron id = [x|y|p]

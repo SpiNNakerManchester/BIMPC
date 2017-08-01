@@ -3,6 +3,7 @@ from spynnaker.pyNN.models.common.population_settable_change_requires_mapping im
     PopulationSettableChangeRequiresMapping
 
 from pacman.executor.injection_decorator import inject_items
+from pacman.model.constraints.key_allocator_constraints import ContiguousKeyRangeContraint
 from pacman.model.decorators.overrides import overrides
 from pacman.model.graphs.application import ApplicationVertex
 from pacman.model.resources.cpu_cycles_per_tick_resource import \
@@ -22,9 +23,7 @@ from spinn_front_end_common.abstract_models.abstract_has_associated_binary \
 from spinn_front_end_common.abstract_models. \
     abstract_provides_outgoing_partition_constraints import \
     AbstractProvidesOutgoingPartitionConstraints
-from pacman.model.constraints.key_allocator_constraints \
-    .key_allocator_contiguous_range_constraint \
-    import KeyAllocatorContiguousRangeContraint
+
 from spinn_front_end_common.interface.simulation import simulation_utilities
 from spinn_front_end_common.utilities import constants as \
     front_end_common_constants
@@ -199,4 +198,4 @@ class Breakout(
     @overrides(AbstractProvidesOutgoingPartitionConstraints.
                get_outgoing_partition_constraints)
     def get_outgoing_partition_constraints(self, partition):
-        return [KeyAllocatorContiguousRangeContraint()]
+        return [ContiguousKeyRangeContraint()]
