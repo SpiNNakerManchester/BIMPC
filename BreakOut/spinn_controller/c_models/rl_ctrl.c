@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
-//#include <stdfix-exp.h>
+#include <stdfix-exp.h>
 
 // Spin 1 API includes
 #include <spin1_api.h>
@@ -50,7 +50,7 @@ typedef enum
 
 #define TICKS_PER_RESPONSE 14
 
-#define ELIG_TRACELIST_SZ 20
+#define ELIG_TRACELIST_SZ 30
 
 // **** Change scale shift to change the coarseness of the state space ****
 // Image (and hence each state dimension) is scaled by 2 ** scale_shift.
@@ -58,12 +58,15 @@ int      scale_shift = 3;
 int      scale;
 accum    discount_rate = 0.9;
 accum    score_weighting = 0.1;
-accum    alpha  = 0.005;
-accum    elig_decay = 0.95;
+accum    alpha  = 0.1;
+accum    elig_decay = 0.9;
+accum    prob_greedy_action = 0.3;
 accum    scale_factor;
+accum    temp = 2.0;
 static uint32_t key;
 uint32_t ticks;
 uint32_t score_up, score_down; 
+uint32_t cum_score_up, cum_score_down; 
 uint32_t new_key;
 uint32_t color_bit;
 uint32_t sz;
@@ -87,6 +90,8 @@ uint32_t prev_action    = KEY_NONE;
 uint32_t move_count;
 uint32_t greedy_move_count;
 uint32_t outcount       = 0;
+uint32_t outcount2      = 0;
+uint32_t outcount3      = 0;
 uint32_t eligcount      = 0;
 uint32_t value_statespace_elements;
 uint32_t action_elements, elements_per_action;
@@ -101,7 +106,6 @@ uint32_t bat_x_bit_start;
 uint32_t ball_x_bit_start;
 uint32_t ball_y_bit_start;
 uint32_t action_bit_start;
-accum    prob_greedy_action = 0.5;
 
 //! Should simulation run for ever? 0 if not
 static uint32_t infinite_run;
@@ -166,6 +170,7 @@ void set_q_value(uint32_t index, accum newVal)
 
 static bool initialize(uint32_t *timer_period)
 {
+   uint32_t p1, blx, bly, btx, act;
    accum no_action_rnd, left_action_rnd, right_action_rnd, sum;
    accum normed_no_action_rnd, normed_left_action_rnd, normed_right_action_rnd;
    int a, j;
@@ -216,10 +221,10 @@ static bool initialize(uint32_t *timer_period)
    pQbase        = sark_xalloc(sv->sdram_heap, action_elements * sizeof(uint32_t), 0, ALLOC_LOCK);
    pEligbase     = sark_alloc(ELIG_TRACELIST_SZ, sizeof(uint32_t));
    for (j=0; j<elements_per_action; j++) {
-       *(pQbase+0*elements_per_action+j)    = 1.0k + get_random_prob();
-       *(pQbase+1*elements_per_action+j)    = 1.0k + get_random_prob();
-       *(pQbase+2*elements_per_action+j)    = 1.0k + get_random_prob();
-       *(pQbase+3*elements_per_action+j)    = 0;
+       *(pQbase+0*elements_per_action+j)  = 1.0k * get_random_prob();
+       *(pQbase+1*elements_per_action+j)  = 1.0k * get_random_prob();
+       *(pQbase+2*elements_per_action+j)  = 1.0k * get_random_prob();
+       *(pQbase+3*elements_per_action+j)  = 0;
    }
    for(j=0; j<ELIG_TRACELIST_SZ; j++)
    {
@@ -228,12 +233,27 @@ static bool initialize(uint32_t *timer_period)
    max_bat_x  = GAME_WIDTH/scale - 1;
    max_ball_x = GAME_WIDTH/scale - 1;
    max_ball_y = GAME_HEIGHT/scale - 1;
-   log_info("Q-value base address: 0x%x,  size (bytes)", pQbase, elements_per_action*12);
    //log_info("Width: %d, height: %d", (GAME_WIDTH/scale), (GAME_HEIGHT/scale));
    //log_info("Scale shift: %d   scale: %d", scale_shift, scale);
    //log_info("Screen size: %d x %d = %d", GAME_WIDTH/scale, GAME_HEIGHT/scale, sz);
    //log_info("Num actions: %d", NUM_ACTIONS);
    //log_info("Elements per action: %d", elements_per_action);
+   //log_info("Ball_x start %d", ball_x_bit_start);
+   //log_info("Ball_y start %d", ball_y_bit_start);
+   //log_info("Bat x start %d", bat_x_bit_start);
+   //log_info("Action start %d", action_bit_start);
+   log_info("Q-value base address: 0x%x,  size %d (bytes)", pQbase, elements_per_action*12);
+   //for(blx=0; blx<20; blx++) {
+   //  for(bly=0; bly<16; bly++) {
+   //     for(btx=0; btx<20; btx++) {
+   //        for(act=0; act<3; act++) {
+   //           p1 = create_index(blx, bly, btx, act,4);
+   //           set_q_value(p1, 256*256*16*blx+256*16*bly+16*btx+act);
+   //        }
+   //     }
+   //  }
+  //}
+
    return true;
 }
 
@@ -251,65 +271,76 @@ bool check_for_game_state_change() {
 
 void select_action()
 {
+   bool override_do_random = 0;
    accum random_action_choice, are_we_doing_greedy_action;
    accum denom;
    uint32_t action_index;
 
    total_move_count++;
 
-   q_left  = get_q_value_from_state(ball_x, ball_y, bat_x, 0); // Left action
-   q_right = get_q_value_from_state(ball_x, ball_y, bat_x, 1); // Right action
-   q_none  = get_q_value_from_state(ball_x, ball_y, bat_x, 2); // None action
+   if (move_count > 0) {
+     q_left  = get_q_value_from_state(ball_x, ball_y, bat_x, 0); // Left action
+     q_right = get_q_value_from_state(ball_x, ball_y, bat_x, 1); // Right action
+     q_none  = get_q_value_from_state(ball_x, ball_y, bat_x, 2); // None action
 
-   denom = q_left + q_right + q_none;
-   left_prob = q_left/denom;
-   right_prob = q_right/denom;
-   none_prob = q_none/denom;
+     denom = expk(q_left/temp) + expk(q_right/temp) + expk(q_none/temp);
+     if (denom < 0.01) {
+       override_do_random = 1;
+     } else {
+        left_prob = expk(q_left/temp)/denom;
+        right_prob = expk(q_right/temp)/denom;
+        none_prob = expk(q_none/temp)/denom;
+     }
 
-   are_we_doing_greedy_action = get_random_prob();
-   // Are we doing a random action or just picking whichever has highest q?
-   if (are_we_doing_greedy_action < prob_greedy_action)
-   {
-      greedy_move_count++;
-      move_count     = 60;
-      if ((left_prob > right_prob) && (left_prob > none_prob))
-      {
-         move_direction = KEY_LEFT;
-         q_value = q_left;
-         left_total++;
-      }
-      else if ((right_prob > left_prob) && (right_prob > none_prob))
-      {
-         move_direction = KEY_RIGHT;
-         q_value = q_right;
-         right_total++;
-      }
-      else // No action is currently best!
-      {
-         move_direction = KEY_NONE;
-         q_value = q_none;
-         none_total++;
-      }
-   }
-   else  // Do random action:
-   {
-      move_count     = (int)(get_random_prob()*80 + 40);
-      random_action_choice = get_random_prob();
-      if (random_action_choice < 0.4) {
-         move_direction = KEY_LEFT;
-         q_value = q_left;
-         left_total++;
-      }
-      else if (random_action_choice < 0.8) {
-         move_direction = KEY_RIGHT;
-         q_value = q_right;
-         right_total++;
-      }
-      else { 
-         move_direction = KEY_NONE;
-         q_value = q_none;
-         none_total++;
-      }
+     are_we_doing_greedy_action = get_random_prob();
+     // Are we doing a random action or just picking whichever has highest q?
+     if ((override_do_random == 0) && (are_we_doing_greedy_action < prob_greedy_action))
+     {
+        greedy_move_count++;
+        if ((left_prob > right_prob) && (left_prob > none_prob))
+        {
+           move_direction = KEY_LEFT;
+           move_count     = 32;
+           q_value = q_left;
+           left_total++;
+        }
+        else if ((right_prob > left_prob) && (right_prob > none_prob))
+        {
+           move_direction = KEY_RIGHT;
+           move_count     = 2;
+           q_value = q_right;
+           right_total++;
+        }
+        else // No action is currently best!
+        {
+           move_count     = 32;
+           move_direction = KEY_NONE;
+           q_value = q_none;
+           none_total++;
+        }
+     }
+     else  // Do random action:
+     {
+        random_action_choice = get_random_prob();
+        if (random_action_choice < 0.4) {
+           move_direction = KEY_LEFT;
+           move_count     = 80;
+           q_value = q_left;
+           left_total++;
+        }
+        else if (random_action_choice < 0.8) {
+           move_direction = KEY_RIGHT;
+           move_count     = 20;
+           q_value = q_right;
+           right_total++;
+        }
+        else { 
+           move_direction = KEY_NONE;
+           move_count     = 80;
+           q_value = q_none;
+           none_total++;
+        }
+     }
    }
    action_index = move_direction - 1;
    q_index = create_index(ball_x, ball_y, bat_x, action_index, 2);
@@ -317,7 +348,7 @@ void select_action()
 
 accum calculate_error_value()
 {
-   accum score = 10 * score_up - score_down;
+   accum score = 20 * score_up - score_down;
    score_up    = 0;
    score_down  = 0;
 
@@ -362,14 +393,15 @@ void perform_reinforcement_learning()
       // and the decay of the elig trace:
       change = scale_factor * elig_discount;
       new_q_value = this_q_value + change;
-      if (new_q_value < 0.05)
-         new_q_value = 0.05;
-      //if (outcount == 4000)
-      //   log_info("Inc: %k", change);
       // update the q value for this state-action pair:
       set_q_value(qa_state_index, new_q_value);
       
       elig_discount = elig_discount * elig_decay;
+   }
+   outcount3++;
+   if (outcount3 == 1000) {
+      outcount3 = 0;
+      log_info("Delta; %k, sf: %k, change: %k", delta, scale_factor, change);
    }
 }
 
@@ -430,22 +462,27 @@ void timer_callback(uint unused, uint dummy)
    } else if (move_count > 0  && move_direction == KEY_RIGHT) {
       spin1_send_mc_packet(key | KEY_RIGHT, 0, NO_PAYLOAD);
       move_count--; 
+   } else {
+      move_count--;
    }
 
    outcount ++;
-   if (outcount > 20000) {
+   outcount2 ++;
+   if (outcount > 80000) {
       outcount = 0;
       if (prob_greedy_action < 0.9)
          prob_greedy_action += 0.0001;
-
-      //log_info("Mvcount: %d, Move: %d, Ball: %d:%d  Bat: %d (%d, %d)  L: %d, R:%d, N:%d", 
-      //          total_move_count, move_direction, ball_x, ball_y, bat_x, bat_x_fine, bat_x_segment,
-      //          left_total, right_total, none_total);
-      //log_info("Scale factor: %k", scale_factor);
-      //log_info("p-greed: %k", prob_greedy_action);
-      //log_info("p-left: %k, p-right: %k, p-none: %k,  Delta: %k p-greed: %k", left_prob, right_prob, none_prob, delta, prob_greedy_action);
-      log_info("q-left: %k, q-right: %k, q-none: %k", q_left, q_right, q_none);
-      log_info("tot mov: %d  greedy moves: %d (greedy prob: %k)", total_move_count, greedy_move_count, prob_greedy_action);
+   }
+   if (outcount2 > 80000) {
+      //outcount3++;
+      outcount2 = 0;
+      log_info("q-left: %k, q-right: %k, q-none: %k, bat_x %d", q_left, q_right, q_none, bat_x);
+      //log_info("cum up: %d   cum down: %d", cum_score_up, cum_score_down);
+      log_info("tot mov: %d  grd moves: %d (grd prob: %k)", total_move_count, greedy_move_count, prob_greedy_action);
+      //if (outcount3 >10) {
+      //   outcount3 = 0;
+      //   log_info("Q-value base address: 0x%x,  size %d (bytes)", pQbase, elements_per_action*12);
+      //}
    }
 }
 
@@ -455,6 +492,7 @@ void timer_callback(uint unused, uint dummy)
 void mc_packet_received_callback(uint key, uint payload)
 {
    use(payload);
+   bool bat_update = 0;
    new_key = key & 0xFFFFF;
    if (new_key  >= SPECIAL_EVENT_MAX)
    { 
@@ -469,13 +507,16 @@ void mc_packet_received_callback(uint key, uint payload)
          // update bat and ball co-ordinates:
          if (new_y == (GAME_HEIGHT -1)) {
             // Movement is probably the bat:
-            bat_x_fine = new_x;
-            if (bat_x_fine < 0)
-               bat_x = 0;
-            else if (bat_x_fine > max_bat_x<<scale_shift)
-               bat_x = max_bat_x;
-            else
-               bat_x = bat_x_fine>>scale_shift;
+            bat_update = 1;
+            bat_x_segment = new_x;
+            // We track the mean centre of the bat.
+            // Drop one sixteen of the men position of the bat:
+            bat_x_fine -= bat_x_fine>>4;
+            // Add on fraction of new position:
+            bat_x_fine += bat_x_segment>>4;
+ 
+            // Update coarse bat_x position;
+            bat_x = bat_x_fine>>scale_shift; 
          }
          else {
             // Change is the ball:
@@ -493,17 +534,19 @@ void mc_packet_received_callback(uint key, uint payload)
          }
          //==============================================
       }
-      // If the game state has changed, update the RL state:
-      if (check_for_game_state_change())
+      // If the game state has changed (excluding bat), update the RL state:
+      if (!bat_update && check_for_game_state_change())
          choose_next_action_and_update_rl_state();
       }
    else // Reward/punishment:
    {
       if (new_key == SPECIAL_EVENT_SCORE_UP){
          score_up++;
+         cum_score_up++;
       }
       else if (new_key == SPECIAL_EVENT_SCORE_DOWN) {
          score_down++;
+         cum_score_down++;
       }
    }  
 }
@@ -538,6 +581,8 @@ void c_main(void)
   color_bit = -1;
   score_up   = 0;
   score_down = 0;
+  cum_score_up   = 0;
+  cum_score_down = 0;
   move_count = 0;
   greedy_move_count = 0;
   move_direction = KEY_LEFT;
