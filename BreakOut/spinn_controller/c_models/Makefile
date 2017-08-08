@@ -4,7 +4,7 @@ endif
 
 APP := rl_ctrl
 BUILD_DIR = build/
-SOURCES = rl_ctrl.c
+SOURCES = rl_ctrl_new.c
 MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MAKEFILE_PATH))
 EXTRA_SRC_DIR := $(abspath $(CURRENT_DIR))
