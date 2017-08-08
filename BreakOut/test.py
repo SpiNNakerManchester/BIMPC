@@ -1,11 +1,13 @@
 import spynnaker7.pyNN as sim
 from spynnaker_external_devices_plugin.pyNN.connections.\
     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
-from spynnaker_external_devices_plugin.pyNN.spynnaker_external_device_plugin_manager import SpynnakerExternalDevicePluginManager as ex
+from spynnaker.pyNN.spynnaker_external_device_plugin_manager import \
+    SpynnakerExternalDevicePluginManager as ex
 import spinn_breakout
 
 # Layout of pixels
-from spynnaker_external_devices_plugin.pyNN.utility_models.spike_injector import SpikeInjector
+from spynnaker.pyNN.models.utility_models.spike_injector import \
+    SpikeInjector
 from spinn_breakout.visualiser.visualiser import Visualiser
 
 X_BITS = 8
@@ -30,7 +32,7 @@ key_input = sim.Population(2, SpikeInjector, {"port": 12367}, label="key_input")
 key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["key_input"])
 
 # Connect key spike injector to breakout population
-sim.Projection(key_input, breakout_pop, sim.OneToOneConnector(weights=2))
+sim.Projection(key_input, breakout_pop, sim.AllToAllConnector(weights=2))
 
 # Create visualiser
 visualiser = Visualiser(

@@ -13,8 +13,8 @@ BRIGHT_GREEN = (0.0, 0.9, 0.0)
 # Input states
 class InputState(enum.IntEnum):
     idle = -1
-    right = 0
     left = 1
+    right = 0
 
 # ----------------------------------------------------------------------------
 # SpecialEvent

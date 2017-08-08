@@ -1,6 +1,9 @@
 # PACMAN imports
-from spynnaker.pyNN.models.common.population_settable_change_requires_mapping import \
-    PopulationSettableChangeRequiresMapping
+# from spynnaker.pyNN.models.common.population_settable_change_requires_mapping import \
+#     PopulationSettableChangeRequiresMapping
+
+# from spynnaker.pyNN.models.abstract_models import AbstractPopulationSettable
+from spinn_front_end_common.abstract_models import AbstractChangableAfterRun
 
 from pacman.executor.injection_decorator import inject_items
 from pacman.model.constraints.key_allocator_constraints import ContiguousKeyRangeContraint
@@ -13,8 +16,8 @@ from pacman.model.resources.resource_container import ResourceContainer
 from pacman.model.resources.sdram_resource import SDRAMResource
 
 # SpinnFrontEndCommon imports
-from spinn_front_end_common.abstract_models \
-    .abstract_binary_uses_simulation_run import AbstractBinaryUsesSimulationRun
+# from spinn_front_end_common.abstract_models \
+#     .abstract_binary_uses_simulation_run import AbstractBinaryUsesSimulationRun
 from spinn_front_end_common.abstract_models \
     .abstract_generates_data_specification \
     import AbstractGeneratesDataSpecification
@@ -23,6 +26,7 @@ from spinn_front_end_common.abstract_models.abstract_has_associated_binary \
 from spinn_front_end_common.abstract_models. \
     abstract_provides_outgoing_partition_constraints import \
     AbstractProvidesOutgoingPartitionConstraints
+from spinn_front_end_common.utilities import globals_variables
 
 from spinn_front_end_common.interface.simulation import simulation_utilities
 from spinn_front_end_common.utilities import constants as \
@@ -30,10 +34,14 @@ from spinn_front_end_common.utilities import constants as \
 from spinn_front_end_common.utilities.utility_objs.executable_start_type \
     import ExecutableStartType
 
+from spinn_front_end_common.utilities import globals_variables
+
 # sPyNNaker imports
 from spynnaker.pyNN.models.abstract_models import AbstractAcceptsIncomingSynapses
 from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
 from spynnaker.pyNN.utilities import constants
+from spynnaker.pyNN.models.common.simple_population_settable \
+    import SimplePopulationSettable
 
 # Breakout imports
 from breakout_machine_vertex import BreakoutMachineVertex
@@ -51,17 +59,21 @@ class BreakoutSynapseType(object):
 # ----------------------------------------------------------------------------
 # Breakout
 # ----------------------------------------------------------------------------
-class Breakout(
-    ApplicationVertex, AbstractGeneratesDataSpecification,
-    AbstractHasAssociatedBinary, AbstractProvidesOutgoingPartitionConstraints,
-    AbstractAcceptsIncomingSynapses,
-    PopulationSettableChangeRequiresMapping,
-    # AbstractBinaryUsesSimulationRun
-):
-    def get_connections_from_machine(self, transceiver, placement, edge, graph_mapper, routing_infos,
-                                     synapse_information, machine_time_step):
-        super(Breakout, self).get_connections_from_machine(transceiver, placement, edge, graph_mapper, routing_infos,
-                                                           synapse_information, machine_time_step)
+class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
+               AbstractHasAssociatedBinary, 
+               AbstractProvidesOutgoingPartitionConstraints,
+               AbstractAcceptsIncomingSynapses,
+               SimplePopulationSettable,
+               # AbstractBinaryUsesSimulationRun
+               ):
+
+    def get_connections_from_machine(self, transceiver, placement, edge, graph_mapper, 
+                               routing_infos, synapse_information, machine_time_step):
+        
+        super(Breakout, self).get_connections_from_machine(transceiver, placement, edge, 
+                                                           graph_mapper, routing_infos,
+                                                           synapse_information, 
+                                                           machine_time_step)
 
     def set_synapse_dynamics(self, synapse_dynamics):
         pass
@@ -69,8 +81,8 @@ class Breakout(
     def add_pre_run_connection_holder(self, connection_holder, projection_edge, synapse_information):
         super(Breakout, self).add_pre_run_connection_holder(connection_holder, projection_edge, synapse_information)
 
-    def get_binary_start_type(self):
-        super(Breakout, self).get_binary_start_type()
+    # def get_binary_start_type(self):
+    #     super(Breakout, self).get_binary_start_type()
     #
     # def requires_mapping(self):
     #     pass
@@ -86,7 +98,8 @@ class Breakout(
     # **HACK** for Projection to connect a synapse type is required
     synapse_type = BreakoutSynapseType()
 
-    def __init__(self, n_neurons, width=160, height=128, constraints=None, label="Breakout"):
+    def __init__(self, n_neurons, width=160, height=128, constraints=None, 
+                 label="Breakout", incoming_spike_buffer_size=None):
         # **NOTE** n_neurons currently ignored - width and height will be
         # specified as additional parameters, forcing their product to be
         # duplicated in n_neurons seems pointless
@@ -95,6 +108,17 @@ class Breakout(
         ApplicationVertex.__init__(
             self, label, constraints, self.n_atoms)
         AbstractProvidesOutgoingPartitionConstraints.__init__(self)
+        SimplePopulationSettable.__init__(self)
+        AbstractChangableAfterRun.__init__(self)
+        AbstractAcceptsIncomingSynapses.__init__(self)
+        self._change_requires_mapping = True
+        # get config from simulator
+        config = globals_variables.get_simulator().config
+
+        if incoming_spike_buffer_size is None:
+            self._incoming_spike_buffer_size = config.getint(
+                                    "Simulation", "incoming_spike_buffer_size")
+
         # PopulationSettableChangeRequiresMapping.__init__(self)
         # self.width = width
         # self.height = height
@@ -205,3 +229,17 @@ class Breakout(
                get_outgoing_partition_constraints)
     def get_outgoing_partition_constraints(self, partition):
         return [ContiguousKeyRangeContraint()]
+
+    @property
+    @overrides(AbstractChangableAfterRun.requires_mapping)
+    def requires_mapping(self):
+        return self._change_requires_mapping
+
+    @overrides(AbstractChangableAfterRun.mark_no_changes)
+    def mark_no_changes(self):
+        self._change_requires_mapping = False
+
+    @overrides(SimplePopulationSettable.set_value)
+    def set_value(self, key, value):
+        SimplePopulationSettable.set_value(self, key, value)
+        self._change_requires_neuron_parameters_reload = True
