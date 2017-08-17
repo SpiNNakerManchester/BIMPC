@@ -41,8 +41,6 @@ typedef enum
 #define GAME_WIDTH  160
 #define GAME_HEIGHT 128
 
-#define RLSTATE_WIDTH  GAME_WIDTH//(GAME_WIDTH>>4)
-#define RLSTATE_HEIGHT GAME_WIDTH//(GAME_HEIGHT>>4)
 #define ROUNDED_NUM_ACTIONS 4
 #define NUM_ACTIONS 3
 
@@ -60,7 +58,7 @@ accum    discount_rate = 0.99;
 accum    score_weighting = 0.1;
 accum    alpha  = 0.1;//0.01;
 accum    elig_decay = 0.95;
-accum    prob_greedy_action = 1.0;//0.98;//0.3;
+accum    prob_greedy_action = 0.9;//1.0;//0.3;
 accum    scale_factor;
 accum    temp = 1.0;//2.0;
 static uint32_t key;
@@ -74,6 +72,7 @@ int32_t  new_y, new_x, change_x;
 int32_t  prev_ball_y, prev_ball_x;
 int32_t  prev_bat_x, bat_x_fine;
 int32_t  ball_y, ball_x;
+int32_t  dir;
 int32_t  bat_x, bat_x_fine;
 int32_t  bat_x_segment;
 int32_t  max_bat_x, max_ball_x, max_ball_y;
@@ -104,10 +103,12 @@ uint32_t state_changes_count = 0;
 uint32_t r_count = 0;
 uint32_t bits_for_width;
 uint32_t bits_for_height;
+uint32_t bits_for_dir;
 uint32_t bat_x_bit_start;
 uint32_t ball_x_bit_start;
 uint32_t ball_y_bit_start;
 uint32_t action_bit_start;
+uint32_t ball_dir_bit_start;
 
 //! Should simulation run for ever? 0 if not
 static uint32_t infinite_run;
@@ -140,9 +141,9 @@ static void add_score_up_event()
   log_debug("Score up");
 }
 
-uint32_t create_index(int32_t bllx, int32_t blly, int32_t batx, int32_t action, int temp)
+uint32_t create_index(int32_t bllx, int32_t blly, int32_t batx, int32_t action, int32_t dir, int temp)
 {
-   uint32_t scrIdx = (bllx<<ball_x_bit_start) + (blly<<ball_y_bit_start) +
+   uint32_t scrIdx = (dir<<ball_dir_bit_start) + (bllx<<ball_x_bit_start) + (blly<<ball_y_bit_start) +
                      (batx<<bat_x_bit_start);
    uint32_t actIdx = action * (1<<action_bit_start);
 
@@ -150,11 +151,11 @@ uint32_t create_index(int32_t bllx, int32_t blly, int32_t batx, int32_t action, 
    return actIdx + scrIdx;
 }
 
-accum get_q_value_from_state(bllx, blly, batx, a)
+accum get_q_value_from_state(bllx, blly, batx, a, dir)
 {
    // Create the index associated with the screen state (ball, bat)
    // and that coming from the given action number:
-   uint32_t index = create_index(bllx, blly, batx, a, 1);
+   uint32_t index = create_index(bllx, blly, batx, a,dir,1);
 
    return *(pQbase + index);
 }
@@ -210,18 +211,31 @@ static bool initialize(uint32_t *timer_period)
    // Reserve memory in SDRAM for V and Q arrays:
    bits_for_width  = get_min_block_bits(GAME_WIDTH/scale);
    bits_for_height = get_min_block_bits(GAME_HEIGHT/scale);
+   bits_for_dir = 1;
   // bits_for_width=8;
   // bits_for_height=7;
 
-   bat_x_bit_start = 0;
+   /*bat_x_bit_start = 0;
    ball_y_bit_start = bat_x_bit_start  + bits_for_width;
    ball_x_bit_start = ball_y_bit_start + bits_for_height;
    action_bit_start = ball_x_bit_start + bits_for_width;
    value_statespace_elements = get_power_of_2_block_sz(GAME_WIDTH/scale) *
                                get_power_of_2_block_sz(GAME_HEIGHT/scale) *
-                               get_power_of_2_block_sz(GAME_WIDTH/scale); // 16 * 8 * 16
+                               get_power_of_2_block_sz(GAME_WIDTH/scale); // 16 * 8 * 16*/
+   bat_x_bit_start = 0;
+   ball_y_bit_start = bat_x_bit_start  + bits_for_width;
+   ball_x_bit_start = ball_y_bit_start + bits_for_height;
+   ball_dir_bit_start = ball_x_bit_start + bits_for_dir;
+
+   action_bit_start = ball_x_bit_start + bits_for_width + bits_for_dir;
+   value_statespace_elements = get_power_of_2_block_sz(GAME_WIDTH/scale) *
+                               get_power_of_2_block_sz(GAME_HEIGHT/scale) *
+                               get_power_of_2_block_sz(GAME_WIDTH/scale) *
+                               2; // 16 * 8 * 16 * 2(l+r)
+
    //value_statespace_elements = 256 * 128 * 256;
 
+   //add the
    elements_per_action = value_statespace_elements;
    //action_elements = elements_per_action * ROUNDED_NUM_ACTIONS; //TODO: check with SD why this is 4
    action_elements = elements_per_action * NUM_ACTIONS;
@@ -234,10 +248,9 @@ static bool initialize(uint32_t *timer_period)
        *(pQbase+1*elements_per_action+j)  = 1.0k * get_random_prob();
        *(pQbase+2*elements_per_action+j)  = 1.0k * get_random_prob();
        *(pQbase+3*elements_per_action+j)  = 0;*/
-       *(pQbase+0*elements_per_action+j)  = 0.0k + 0.01k*get_random_prob();
-       *(pQbase+1*elements_per_action+j)  = 0.0k + 0.01k*get_random_prob();
-       *(pQbase+2*elements_per_action+j)  = 0.0k + 0.01k*get_random_prob();
-       *(pQbase+3*elements_per_action+j)  = 0;
+       *(pQbase+0*elements_per_action+j)  = 1.0k + 0.01k*get_random_prob();
+       *(pQbase+1*elements_per_action+j)  = 1.0k + 0.01k*get_random_prob();
+       *(pQbase+2*elements_per_action+j)  = 1.0k + 0.01k*get_random_prob();
    }
    for(j=0; j<ELIG_TRACELIST_SZ; j++)
    {
@@ -273,6 +286,18 @@ static bool initialize(uint32_t *timer_period)
 bool check_for_game_state_change() {
    if ((ball_x != prev_ball_x) || (ball_y != prev_ball_y) || (bat_x != prev_bat_x))
    {
+      //calculate left/right direction of ball
+      if(prev_ball_x>ball_x)
+      {
+        dir=0;//ball is heading west
+      }
+      else if (prev_ball_x<ball_x)
+      {
+        dir=1;//ball is heading east
+      }
+      else{//assume ball is in same direction
+      }
+      //update ball location states
       prev_ball_x = ball_x;
       prev_ball_y = ball_y;
       prev_bat_x  = bat_x;
@@ -290,19 +315,18 @@ void select_action()
    accum denom;
    uint32_t action_index;
 
-   total_move_count++;
-
    if (move_count == 0) {
 
+     total_move_count++;
      move_count = 14*16;//a bat width
 
-     q_left  = get_q_value_from_state(ball_x, ball_y, bat_x, 0); // Left action
-     q_right = get_q_value_from_state(ball_x, ball_y, bat_x, 1); // Right action
-     q_none  = get_q_value_from_state(ball_x, ball_y, bat_x, 2); // None action
+     q_left  = get_q_value_from_state(ball_x, ball_y, bat_x, 0,dir); // Left action
+     q_right = get_q_value_from_state(ball_x, ball_y, bat_x, 1,dir); // Right action
+     q_none  = get_q_value_from_state(ball_x, ball_y, bat_x, 2,dir); // None action
 
      denom = expk(q_left/temp) + expk(q_right/temp) + expk(q_none/temp);
-     //if (denom < 0.01) {
-     if (denom < 3.1) {
+     if (denom < 0.01) {
+     //if (denom < 3.1) {
        override_do_random = 1;
      } else {
         left_prob = expk(q_left/temp)/denom;
@@ -363,7 +387,7 @@ void select_action()
      }
    }
    action_index = move_direction - 1;
-   q_index = create_index(ball_x, ball_y, bat_x, action_index, 2);
+   q_index = create_index(ball_x, ball_y, bat_x, action_index,dir, 2);
 }
 
 accum calculate_error_value()
@@ -527,13 +551,13 @@ void timer_callback(uint unused, uint dummy)
    outcount2 ++;
    if (outcount > 80000) {
       outcount = 0;
-      if (prob_greedy_action < 0.95)
-         prob_greedy_action += 0.01;//0.002;
+      if (prob_greedy_action < 0.99)
+         prob_greedy_action += 0.001;//0.002;
    }
    if (outcount2 > 80000) {
       //outcount3++;
       outcount2 = 0;
-      log_info("q-left: %k, q-right: %k, q-none: %k, bat_x %d", q_left, q_right, q_none, bat_x);
+      log_info("q-left: %k, q-right: %k, q-none: %k, bat_x %d, dir %d", q_left, q_right, q_none, bat_x,dir);
       log_info("cum up: %d   cum down: %d", cum_score_up, cum_score_down);
       log_info("tot mov: %d  grd moves: %d (grd prob: %k)", total_move_count, greedy_move_count, prob_greedy_action);
       total_move_count=0;
