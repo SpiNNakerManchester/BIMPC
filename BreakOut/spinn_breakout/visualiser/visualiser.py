@@ -54,6 +54,10 @@ class Visualiser(object):
 
         self.value_mask = (1 << (x_bits + y_bits + self.colour_bits)) - 1
 
+        self.y_res=y_res
+        self.x_res=x_res
+        self.bat_width=32
+
         # Open socket to receive datagrams
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(("0.0.0.0", udp_port))
@@ -126,8 +130,18 @@ class Visualiser(object):
                 vision_payload = payload_value[vision_event_mask] - SpecialEvent.max
                 x = (vision_payload >> self.x_shift) & self.x_mask
                 y = (vision_payload >> self.y_shift) & self.y_mask
+
                 c = (vision_payload & self.colour_mask)
 
+
+                '''if y.any() == self.y_res-1:
+                    if c[np.where(y==self.y_res-1)].any()==1:
+                        #add remaining bat pixels to image
+                        x_pos=x[np.where(y==self.y_res-1)]
+                        for i in range(1,self.bat_width):
+                            np.hstack((y,self.y_res-1))
+                            np.hstack((c,1))
+                            np.hstack((x,x_pos+i))'''
                 # Set valid pixels
                 try:
                     self.image_data[y, x] = c

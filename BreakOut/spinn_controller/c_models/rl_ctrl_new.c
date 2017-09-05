@@ -48,11 +48,11 @@ typedef enum
 
 #define TICKS_PER_RESPONSE 14
 
-#define ELIG_TRACELIST_SZ 30
+#define ELIG_TRACELIST_SZ 60//30
 
 // **** Change scale shift to change the coarseness of the state space ****
 // Image (and hence each state dimension) is scaled by 2 ** scale_shift.
-int      scale_shift = 3;
+int      scale_shift = 2;//3;
 int      scale;
 accum    discount_rate = 0.99;
 accum    score_weighting = 0.1;
@@ -60,7 +60,7 @@ accum    alpha  = 0.1;//0.01;
 accum    elig_decay = 0.95;
 accum    prob_greedy_action = 0.9;//1.0;//0.3;
 accum    scale_factor;
-accum    temp = 1.0;//2.0;
+accum    temp = 2.0;
 static uint32_t key;
 uint32_t ticks;
 uint32_t score_up, score_down;
@@ -225,21 +225,21 @@ static bool initialize(uint32_t *timer_period)
    bat_x_bit_start = 0;
    ball_y_bit_start = bat_x_bit_start  + bits_for_width;
    ball_x_bit_start = ball_y_bit_start + bits_for_height;
-   ball_dir_bit_start = ball_x_bit_start + bits_for_dir;
+   ball_dir_bit_start = ball_x_bit_start + bits_for_width;
 
    action_bit_start = ball_x_bit_start + bits_for_width + bits_for_dir;
-   value_statespace_elements = get_power_of_2_block_sz(GAME_WIDTH/scale) *
+  /* value_statespace_elements = get_power_of_2_block_sz(GAME_WIDTH/scale) *
                                get_power_of_2_block_sz(GAME_HEIGHT/scale) *
                                get_power_of_2_block_sz(GAME_WIDTH/scale) *
-                               2; // 16 * 8 * 16 * 2(l+r)
+                               2; // 16 * 8 * 16 * 2(l+r)*/
 
-   //value_statespace_elements = 256 * 128 * 256;
+   value_statespace_elements = pow(2,action_bit_start+get_min_block_bits(NUM_ACTIONS));
+   pQbase        = sark_xalloc(sv->sdram_heap, value_statespace_elements * sizeof(uint32_t), 0, ALLOC_LOCK);
 
    //add the
    elements_per_action = value_statespace_elements;
-   //action_elements = elements_per_action * ROUNDED_NUM_ACTIONS; //TODO: check with SD why this is 4
-   action_elements = elements_per_action * NUM_ACTIONS;
-   pQbase        = sark_xalloc(sv->sdram_heap, action_elements * sizeof(uint32_t), 0, ALLOC_LOCK);
+   //action_elements = elements_per_action * ROUNDED_NUM_ACTIONS;
+   //pQbase        = sark_xalloc(sv->sdram_heap, action_elements * sizeof(uint32_t), 0, ALLOC_LOCK);
    pEligbase     = sark_alloc(ELIG_TRACELIST_SZ, sizeof(uint32_t));
    for (j=0; j<elements_per_action; j++) {
 
