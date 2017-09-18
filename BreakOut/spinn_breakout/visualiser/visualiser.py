@@ -63,7 +63,8 @@ class Visualiser(object):
         cmap = col.ListedColormap(["black", BRIGHT_GREEN])
 
         # Create image plot to display game screen
-        self.fig, self.axis = plt.subplots()
+        self.fig = plt.figure("BreakOut")
+        self.axis = plt.subplot(1,1,1)
         self.image_data = np.zeros((y_res, x_res))
         self.image = self.axis.imshow(self.image_data, interpolation="nearest",
                                       cmap=cmap, vmin=0.0, vmax=1.0)
@@ -172,3 +173,10 @@ class Visualiser(object):
         # If either key is released set state to idle
         if event.key == "left" or event.key == "right":
             self.input_state = InputState.idle
+
+
+if __name__ == "__main__":
+    print("Running from command line")
+    UDP_PORT = 17893
+    vis = Visualiser(UDP_PORT)
+    vis.show()

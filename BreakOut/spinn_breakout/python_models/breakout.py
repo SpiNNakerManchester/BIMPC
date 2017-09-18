@@ -46,6 +46,7 @@ from spynnaker.pyNN.models.common.simple_population_settable \
 # Breakout imports
 from breakout_machine_vertex import BreakoutMachineVertex
 
+import numpy
 
 # ----------------------------------------------------------------------------
 # Breakout
@@ -98,11 +99,21 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
     # **HACK** for Projection to connect a synapse type is required
     synapse_type = BreakoutSynapseType()
 
-    def __init__(self, n_neurons, width=160, height=128, constraints=None, 
+    def __init__(self, n_neurons, width=WIDTH_PIXELS, height=HEIGHT_PIXELS,
+                 colour_bits=COLOUR_BITS, constraints=None,
                  label="Breakout", incoming_spike_buffer_size=None):
         # **NOTE** n_neurons currently ignored - width and height will be
         # specified as additional parameters, forcing their product to be
         # duplicated in n_neurons seems pointless
+
+        self._width = width
+        self._height = height
+        self._colour_bits = colour_bits
+        self._width_bits = numpy.uint32(numpy.ceil(numpy.log2(width)))
+        self._height_bits = numpy.uint32(numpy.ceil(numpy.log2(height)))
+
+        self._n_neurons = (1 << (self._width_bits + self._height_bits +
+                                 self._colour_bits))
 
         # Superclasses
         ApplicationVertex.__init__(
@@ -154,9 +165,11 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
     @property
     @overrides(ApplicationVertex.n_atoms)
     def n_atoms(self):
+
         # **TODO** should we calculate this automatically
         # based on log2 of width and height?
-        return 2 + (256 * 256 * 2) * 4
+        # return 2 + (256 * 256 * 2)
+        return self._n_neurons
 
     # ------------------------------------------------------------------------
     # AbstractGeneratesDataSpecification overrides
