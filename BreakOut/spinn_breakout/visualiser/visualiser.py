@@ -178,6 +178,7 @@ class Visualiser(object):
     def _on_key_press(self, event):
         # Send appropriate bits
         if event.key == "left":
+            print
             self.input_state = InputState.left
         elif event.key == "right":
             self.input_state = InputState.right

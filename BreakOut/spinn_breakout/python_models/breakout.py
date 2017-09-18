@@ -78,7 +78,7 @@ class Breakout(
     def clear_connection_cache(self):
         pass
 
-    BREAKOUT_REGION_BYTES = 12
+    BREAKOUT_REGION_BYTES = 4
     WIDTH_PIXELS = 160
     HEIGHT_PIXELS = 128
     COLOUR_BITS = 2
@@ -95,7 +95,7 @@ class Breakout(
         ApplicationVertex.__init__(
             self, label, constraints, self.n_atoms)
         AbstractProvidesOutgoingPartitionConstraints.__init__(self)
-        # PopulationSettableChangeRequiresMapping.__init__(self)
+        PopulationSettableChangeRequiresMapping.__init__(self)
         # self.width = width
         # self.height = height
 
@@ -103,8 +103,8 @@ class Breakout(
         # Breakout has no synapses so can simulate only one time step of delay
         return machine_time_step / 1000.0
 
-    def get_max_atoms_per_core(self):
-        return self.n_atoms
+#    def get_max_atoms_per_core(self):
+ #       return self.n_atoms
 
     # ------------------------------------------------------------------------
     # ApplicationVertex overrides
@@ -132,7 +132,7 @@ class Breakout(
     def n_atoms(self):
         # **TODO** should we calculate this automatically
         # based on log2 of width and height?
-        return 2 + (256 * 256 * 2) * 4
+        return 2 + (256 * 256 * 2) #* 4
 
     # ------------------------------------------------------------------------
     # AbstractGeneratesDataSpecification overrides
@@ -181,8 +181,6 @@ class Breakout(
             BreakoutMachineVertex._BREAKOUT_REGIONS.BREAKOUT.value)
         spec.write_value(routing_info.get_first_key_from_pre_vertex(
             vertex, constants.SPIKE_PARTITION_ID))
-        # spec.write_value(self.width)
-        # spec.write_value(self.height)
 
         # End-of-Spec:
         spec.end_specification()

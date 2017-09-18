@@ -415,7 +415,7 @@ void mc_packet_received_callback(uint key, uint payload)
 {
   use(payload);
 
-  uint stripped_key = key & 0xFFFFF;
+ /* uint stripped_key = key & 0xFFFFF;
   pkt_count++;
 
   // Left
@@ -427,6 +427,17 @@ void mc_packet_received_callback(uint key, uint payload)
   else if (stripped_key & KEY_RIGHT)
   {
     right_key_count++;
+  }*/
+
+  // Left
+  if(key & 0x1)
+  {
+    keystate |= KEY_LEFT;
+  }
+  // Right
+  else
+  {
+    keystate |= KEY_RIGHT;
   }
 }
 //-------------------------------------------------------------------------------

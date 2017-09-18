@@ -6,7 +6,7 @@ import spinn_breakout
 
 # Layout of pixels
 from spynnaker_external_devices_plugin.pyNN.utility_models.spike_injector import SpikeInjector
-from spinn_breakout.visualiser.visualiser import Visualiser
+from spinn_breakout.visualiser.visualiser_test import Visualiser
 
 X_BITS = 8
 Y_BITS = 8
