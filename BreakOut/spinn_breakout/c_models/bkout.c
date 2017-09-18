@@ -154,8 +154,18 @@ static inline void set_pixel_col (int i, int j, colour_t col)
 {
     if (col != get_pixel_col(i, j))
     {
-      frame_buff[i / 8][j] = (frame_buff[i / 8][j] & ~(0xF << ((i % 8) * 4))) | ((int)col << ((i % 8)*4));
-      add_event (i, j, col);
+      /*  //just update bat pixels in game frame
+        if (j==GAME_HEIGHT-1)
+        {
+            frame_buff[i / 8][j] = (frame_buff[i / 8][j] & ~(0xF << ((i % 8) * 4))) | ((int)col << ((i % 8)*4));
+        }
+        else
+        {
+            frame_buff[i / 8][j] = (frame_buff[i / 8][j] & ~(0xF << ((i % 8) * 4))) | ((int)col << ((i % 8)*4));
+            add_event (i, j, col);
+        }*/
+        frame_buff[i / 8][j] = (frame_buff[i / 8][j] & ~(0xF << ((i % 8) * 4))) | ((int)col << ((i % 8)*4));
+        add_event (i, j, col);
     }
 }
 
@@ -213,6 +223,8 @@ static void update_frame ()
       set_pixel_col(i, GAME_HEIGHT-1, COLOUR_BAT);
     }
 
+
+
     // Remove pixels left over from old bat
     if (x_bat > old_xbat)
     {
@@ -222,6 +234,11 @@ static void update_frame ()
     {
       set_pixel_col(old_xbat + bat_len, GAME_HEIGHT-1, COLOUR_BACKGROUND);
     }
+
+   //only draw left edge of bat pixel
+   // add_event(x_bat, GAME_HEIGHT-1, COLOUR_BAT);
+   //send off pixel to network (ignoring game frame buffer update)
+   // add_event (old_xbat, GAME_HEIGHT-1, COLOUR_BACKGROUND);
   }
 
 // draw ball
@@ -398,7 +415,7 @@ void mc_packet_received_callback(uint key, uint payload)
 {
   use(payload);
 
-  uint stripped_key = key & 0xFFFFF;
+ /* uint stripped_key = key & 0xFFFFF;
   pkt_count++;
 
   // Left
@@ -410,6 +427,17 @@ void mc_packet_received_callback(uint key, uint payload)
   else if (stripped_key & KEY_RIGHT)
   {
     right_key_count++;
+  }*/
+
+  // Left
+  if(key & 0x1)
+  {
+    keystate |= KEY_LEFT;
+  }
+  // Right
+  else
+  {
+    keystate |= KEY_RIGHT;
   }
 }
 //-------------------------------------------------------------------------------
