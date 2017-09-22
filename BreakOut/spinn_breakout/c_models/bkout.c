@@ -76,6 +76,7 @@ typedef enum
 uint ticks;
 uint pkt_count;
 
+
 // initial ball coordinates in fixed-point
 static int x = (GAME_WIDTH / 4) * FACT;
 static int y = (GAME_HEIGHT / 2) * FACT;
@@ -116,7 +117,7 @@ uint32_t move_count_r = 0;
 uint32_t move_count_l = 0;
 
 //ratio used in randomising initial x coordinate
-static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH*FACT);
+static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH);
 
 
 //----------------------------------------------------------------------------
@@ -303,12 +304,32 @@ static void update_frame ()
     {
       v = -1 * FACT;
       y = (GAME_HEIGHT / 2)*FACT;
+
+      if( ((int)mars_kiss32()) > 0 ){
+        if( ((int)mars_kiss32()) > 0 ){
+            u = FACT;
+        }
+        else{
+            u = FACT/2;
+        }
+      }
+      else{
+        if( ((int)mars_kiss32()) > 0 ){
+            u = -FACT;
+        }
+        else{
+            u = -(FACT/2);
+        }
+      }
       //randomises initial x location
-      x = 160;
-      while (x==160)
+      x = GAME_WIDTH;
+      while (x >= GAME_WIDTH)
          x = (int)(mars_kiss32()/x_ratio);
+//      x = (int)(mars_kiss32()%GAME_WIDTH);
+//      log_info("random x = %d", x);
+      x *= FACT;
+
       out_of_play = OUT_OF_PLAY;
-      
       // Decrease score
       add_score_down_event();
     }

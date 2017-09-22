@@ -5,8 +5,14 @@ import socket
 import matplotlib.animation as animation
 import matplotlib.colors as col
 import matplotlib.pyplot as plt
+import datetime
+
+# from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import cv2
 
 BRIGHT_GREEN = (0.0, 0.9, 0.0)
+VIDEO_GREEN = np.array([0, 230, 0])
+VIDEO_RED = np.array([230, 0, 0])
 # ----------------------------------------------------------------------------
 # InputState
 # ----------------------------------------------------------------------------
@@ -69,6 +75,7 @@ class Visualiser(object):
         # Create image plot to display game screen
         self.fig = plt.figure("BreakOut")
         self.axis = plt.subplot(1,1,1)
+        # self.ion = plt.ion()
         self.image_data = np.zeros((y_res, x_res))
         self.image = self.axis.imshow(self.image_data, interpolation="nearest",
                                       cmap=cmap, vmin=0.0, vmax=1.0)
@@ -87,6 +94,16 @@ class Visualiser(object):
         self.axis.set_yticklabels([])
         self.axis.axes.get_xaxis().set_visible(False)
 
+        self.scale = 5
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        self.video_data = np.zeros((y_res, x_res, 3), dtype='uint8')
+        self.video_writer = cv2.VideoWriter(
+                                "breakout_output_%s.m4v"%
+                                    datetime.datetime.now().
+                                        strftime("%Y-%m-%d___%H-%M-%S"),
+                                fourcc, 50.0,
+                                (self.x_res*self.scale, self.y_res*self.scale),
+                                isColor=True)
     # ------------------------------------------------------------------------
     # Public methods
     # ------------------------------------------------------------------------
@@ -109,6 +126,7 @@ class Visualiser(object):
             self.key_input_connection.send_spike("key_input", self.input_state)
 
         # Read all datagrams received during last frame
+        message_received = False
         while True:
             try:
                 raw_data = self.socket.recv(512)
@@ -119,6 +137,7 @@ class Visualiser(object):
                 # Stop reading datagrams
                 break
             else:
+                message_received = True
                 # Slice off EIEIO header and convert to numpy array of uint32
                 payload = np.fromstring(raw_data[6:], dtype="uint32")
 
@@ -145,11 +164,17 @@ class Visualiser(object):
                             np.hstack((x,x_pos+i))'''
                 # Set valid pixels
                 try:
+                    # self.image_data[:] = 0
                     self.image_data[y, x] = c
+                    # if c>0:
+                    # self.video_data[:] = 0
+                    self.video_data[y, x, 1] = np.uint8(c*230)
+                    # else:
+                    #     self.video_data[y, x, :] = VIDEO_RED
                 except IndexError as e:
                     print("Packet contains invalid pixels:",
                           vision_payload, "X:", x, "  Y:",y, " c:",c)
-                    self.image_data[:-1, :] = 0
+                    # self.image_data[:-1, :] = 0
 
                 # Create masks to select score events and count them
                 num_score_up_events = np.sum(payload_value == SpecialEvent.score_up)
@@ -167,6 +192,12 @@ class Visualiser(object):
         # Set image data
         try:
             self.image.set_array(self.image_data)
+            if message_received:
+                self.video_writer.write(
+                    cv2.resize(
+                        self.video_data,
+                        (self.x_res*self.scale, self.y_res*self.scale),
+                        interpolation=cv2.INTER_NEAREST))
         except NameError:
             pass
 
@@ -179,7 +210,7 @@ class Visualiser(object):
     def _on_key_press(self, event):
         # Send appropriate bits
         if event.key == "left":
-            print
+            # print
             self.input_state = InputState.left
         elif event.key == "right":
             self.input_state = InputState.right
@@ -195,3 +226,4 @@ if __name__ == "__main__":
     UDP_PORT = 17893
     vis = Visualiser(UDP_PORT)
     vis.show()
+    vis.video_writer.release()
