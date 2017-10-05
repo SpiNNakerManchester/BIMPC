@@ -59,8 +59,8 @@ typedef enum
 
 typedef enum
 {
-  KEY_LEFT  = 0x1,
-  KEY_RIGHT = 0x2,
+  KEY_LEFT  = 0x0,
+  KEY_RIGHT = 0x1,
 } key_t;
 
 typedef enum
@@ -107,12 +107,13 @@ static uint32_t key;
 static uint32_t infinite_run;
 
 //! the number of timer ticks that this model should run for before exiting.
-static uint32_t simulation_ticks = 0;
+uint32_t simulation_ticks = 0;
 
 //! How many ticks until next frame
 static uint32_t tick_in_frame = 0;
 
-uint32_t left_key_count, right_key_count;
+uint32_t left_key_count = 0;
+uint32_t right_key_count = 0;
 uint32_t move_count_r = 0;
 uint32_t move_count_l = 0;
 
@@ -189,29 +190,51 @@ static void update_frame ()
 {
 // draw bat
   // Cache old bat position
-  const int old_xbat = x_bat;
+  const uint32_t old_xbat = x_bat;
+//  log_info("key counts left %u, right %u",
+//           left_key_count, right_key_count);
 
-  if (left_key_count > right_key_count) {
-    keystate |= KEY_LEFT;
-    move_count_l++;
-  }
-  else if (right_key_count > left_key_count) {
-    keystate |= KEY_RIGHT;
+//  if (left_key_count > right_key_count) {
+//    keystate |= KEY_LEFT;
+//    move_count_l++;
+////    log_info("moved left");
+//  }
+//  else if (right_key_count > left_key_count && right_key_count!= 0) {
+////  else if (right_key_count > left_key_count) {
+//    keystate |= KEY_RIGHT;
+//    move_count_r++;
+////    log_info("moved right");
+//  }
+  int move_directon;
+  if (right_key_count > left_key_count){
+    move_directon = KEY_RIGHT;
     move_count_r++;
+//    log_info("moved right");
   }
+  else if (left_key_count > right_key_count){
+    move_directon = KEY_LEFT;
+    move_count_l++;
+//    log_info("moved left");
+  }
+  else{
+    move_directon = 2;
+//    log_info("didn't move!");
+  }
+
 
   // Update bat and clamp
-  if (keystate & KEY_LEFT && --x_bat < 0)
+  if (move_directon == KEY_LEFT && --x_bat < 0)
   {
+
     x_bat = 0;
   }
-  else if (keystate & KEY_RIGHT && ++x_bat > GAME_WIDTH-bat_len-1)
+  else if (move_directon == KEY_RIGHT && ++x_bat > GAME_WIDTH-bat_len-1)
   {
     x_bat = GAME_WIDTH-bat_len-1;
   }
 
+
   // Clear keystate
-  keystate = 0;
   left_key_count = 0;
   right_key_count = 0;
 
@@ -305,24 +328,13 @@ static void update_frame ()
       v = -1 * FACT;
       y = (GAME_HEIGHT / 2)*FACT;
 
-      if( ((int)mars_kiss32()) > 0 ){
-        if( ((int)mars_kiss32()) > 0 ){
-            u = FACT;
-        }
-        else{
-            u = FACT/2;
-        }
+      if(mars_kiss32() > 0xFFFF){
+        u = -u;
       }
-      else{
-        if( ((int)mars_kiss32()) > 0 ){
-            u = -FACT;
-        }
-        else{
-            u = -(FACT/2);
-        }
-      }
+
       //randomises initial x location
       x = GAME_WIDTH;
+
       while (x >= GAME_WIDTH)
          x = (int)(mars_kiss32()/x_ratio);
 //      x = (int)(mars_kiss32()%GAME_WIDTH);
@@ -365,6 +377,8 @@ static bool initialize(uint32_t *timer_period)
   {
       return false;
   }
+  log_info("simulation time = %u", simulation_ticks);
+
 
   // Read breakout region
   address_t breakout_region = data_specification_get_region(REGION_BREAKOUT, address);
@@ -397,13 +411,21 @@ void timer_callback(uint unused, uint dummy)
   // If a fixed number of simulation ticks are specified and these have passed
   ticks++;
 
-  if (!infinite_run && (ticks - 1) >= simulation_ticks)
+  if (!infinite_run && ticks >= simulation_ticks)
   {
     //spin1_pause();
     // go into pause and resume state to avoid another tick
     simulation_handle_pause_resume(NULL);
+//    spin1_callback_off(MC_PACKET_RECEIVED);
+
+    log_info("move count Left %u", move_count_l);
+    log_info("move count Right %u", move_count_r);
+//    log_info("key count Left %u", left_key_count);
+//    log_info("key count Right %u", right_key_count);
+
 
     log_info("Exiting on timer.");
+    ticks -= 1;
     return;
   }
   // Otherwise
@@ -435,6 +457,7 @@ void timer_callback(uint unused, uint dummy)
 void mc_packet_received_callback(uint key, uint payload)
 {
   use(payload);
+//  log_info("mc pack in %u", key);
 
  /* uint stripped_key = key & 0xFFFFF;
   pkt_count++;
@@ -449,17 +472,28 @@ void mc_packet_received_callback(uint key, uint payload)
   {
     right_key_count++;
   }*/
-
+/*
+  if(key & KEY_RIGHT){
+    right_key_count++;
+  }
   // Left
-  if(key & 0x1)
-  {
-    keystate |= KEY_LEFT;
+//  if(key & KEY_LEFT){
+//  else{
+  else if(key & KEY_LEFT){
+    left_key_count++;
   }
+//  else
+/*/
   // Right
-  else
-  {
-    keystate |= KEY_RIGHT;
+  if(key & KEY_RIGHT){
+    right_key_count++;
   }
+  else {
+//  else{
+    left_key_count++;
+  }
+//*/
+//  log_info("mc key %u, L %u, R %u", key, left_key_count, right_key_count);
 }
 //-------------------------------------------------------------------------------
 
@@ -532,4 +566,5 @@ void c_main(void)
   ticks = UINT32_MAX;
 
   simulation_run();
+
 }

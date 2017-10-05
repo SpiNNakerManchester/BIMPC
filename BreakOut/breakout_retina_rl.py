@@ -18,7 +18,7 @@ from vision.spike_tools.vis.vis_tools import plot_in_out_spikes
 import numpy as np
 import matplotlib.pyplot as plt
 from random_balanced_network import RandomBalancedNetwork
-
+from control_output import ControlOutput
 
 def get_weights(projs, loop, weights, w_init):
     output_fname = "weights_loop_{:06d}.txt".format(loop)
@@ -213,13 +213,22 @@ RET_CFG = {'record': {'voltages': False,
            'direction': False,
            # 'w2s': 20.,
            }
+
 RET_MODE = dvs_modes[MERGED]
 
+LEFT_CTRL_CFG = dict(w2s=5., w_keep_alive = 5., w_control_inh = 5.*0.25,
+                     w_inh_feedback = 5.*2., d_keep_alive = 2,
+                     d_inh_feedback = 20, label='LEFT control')
+
+RIGHT_CTRL_CFG = dict(w2s=5., w_keep_alive = 5., w_control_inh = 5.*0.25,
+                      w_inh_feedback = 5.*2., d_keep_alive = 2,
+                      d_inh_feedback = 20, label='RIGHT control')
+
 ########################################################################
 ########################################################################
 ########################################################################
 
-do_full_run = switch(0)
+do_full_run = switch(1)
 
 view_game = switch(1)
 view_retina = switch(0)
@@ -232,7 +241,7 @@ use_punishment = switch(0)
 use_wta = switch(1)
 retrieve_weights = switch(0 or do_full_run)
 rand_w = switch(0)
-controller_keep_alive = switch(1)
+# controller_keep_alive = switch(1)
 controller_inh = switch(1)
 opposing_inh = switch(0)
 
@@ -322,10 +331,8 @@ right_agent = sim.Population(num_rl_neurons, sim.IF_curr_exp_supervision,
                              label='right agent')
 
 
-left_control = sim.Population(num_left_ctrl, sim.IF_curr_exp, {},
-                              label='control left')
-right_control = sim.Population(num_right_ctrl, sim.IF_curr_exp, {},
-                               label='control right')
+left_control = ControlOutput(sim, num_left_ctrl, LEFT_CTRL_CFG)
+right_control = ControlOutput(sim, num_right_ctrl, RIGHT_CTRL_CFG)
 
 # left_control = sim.Population(1, sim.SpikeSourceArray,
 #                               {'spike_times': [[0, 1, 2, 40]]},
@@ -334,8 +341,8 @@ right_control = sim.Population(num_right_ctrl, sim.IF_curr_exp, {},
 if record_control:
     left_agent.record()
     right_agent.record()
-    left_control.record()
-    right_control.record()
+    left_control.output.record()
+    right_control.output.record()
 
 reward_pop = sim.Population(1, sim.IF_curr_exp, {}, label='reward pop')
 punish_pop = sim.Population(1, sim.IF_curr_exp, {}, label='punish pop')
@@ -362,12 +369,12 @@ if use_wta:
 #  P  R  O  J  E  C  T  I  O  N  S
 # ######################################################################
 
-sim.Projection(left_agent, left_control,
+sim.Projection(left_agent, left_control.input,
                sim.FromListConnector(
                         all_to_one_conn(num_rl_neurons, 0, w_ctrl, 1)),
                label='from left agent to direction left')
 
-sim.Projection(right_agent, right_control,
+sim.Projection(right_agent, right_control.input,
                sim.FromListConnector(
                         all_to_one_conn(num_rl_neurons, 1, w_ctrl, 1)),
                label='from right agent to direction right')
@@ -375,11 +382,11 @@ sim.Projection(right_agent, right_control,
 ##################
 ##################
 
-sim.Projection(left_control, breakout_pop,
+sim.Projection(left_control.output, breakout_pop,
                sim.FromListConnector([(0, 0, 1, 1.)]),
                label='from direction left to break_pop')
 
-sim.Projection(right_control, breakout_pop,
+sim.Projection(right_control.output, breakout_pop,
                sim.FromListConnector([(1, 0, 1, 1.)]),
                label='from direction right to break_pop')
 
@@ -525,29 +532,18 @@ if use_wta:
                    label='wta inh neuron left agent')
 
 if controller_inh:
-    sim.Projection(left_control, right_control,
+    sim.Projection(left_control.output, right_control.output,
                    sim.OneToOneConnector(weights=w2s,
                                          generate_on_machine=False),
                    label='left dir inhibits right dir',
                    target='inhibitory')
 
-    sim.Projection(right_control, left_control,
+    sim.Projection(right_control.output, left_control.output,
                    sim.OneToOneConnector(weights=w2s,
                                          generate_on_machine=False),
                    label='right dir inhibits left dir',
                    target='inhibitory')
 
-# keep input current comming into decision
-if controller_keep_alive:
-    sim.Projection(left_control, left_control,
-                   sim.OneToOneConnector(weights=w_keep_alive,
-                                         generate_on_machine=False),
-                   label='recursive decision left')
-
-    sim.Projection(right_control, right_control,
-                   sim.OneToOneConnector(weights=w_keep_alive,
-                                         generate_on_machine=False),
-                   label='recursive decision left')
 
 start_time = 0.
 recorded_weights = []
@@ -565,8 +561,8 @@ for loop in range(n_loops):
 
     # plot_weights(weights)
     if record_control:
-        ctrl_left = left_control.getSpikes(compatible_output=True)
-        ctrl_right = right_control.getSpikes(compatible_output=True)
+        ctrl_left = left_control.output.getSpikes(compatible_output=True)
+        ctrl_right = right_control.output.getSpikes(compatible_output=True)
         agent_left = left_agent.getSpikes(compatible_output=True)
         agent_right = right_agent.getSpikes(compatible_output=True)
 

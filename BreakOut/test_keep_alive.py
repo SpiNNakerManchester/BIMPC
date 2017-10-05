@@ -3,18 +3,26 @@ import matplotlib.pyplot as plt
 import spynnaker7.pyNN as sim
 
 
-w2s = 10.
-w_keep_alive = w2s*0.84
-d_keep_alive = 4
+w2s = 5.
+w_keep_alive = w2s
+w_control_inh = w2s*0.25
+w_inh_feedback = w2s*2.
+d_keep_alive = 2
+d_inh_feedback = 20
 sim.setup(timestep=1., min_delay=1., max_delay=32.)
 
 sim.set_number_of_neurons_per_core('IF_curr_exp', 50)
 
 stim = sim.Population(1, sim.SpikeSourceArray,
                       {'spike_times': [[10]]})
-control = sim.Population(1, sim.IF_curr_exp, {'tau_syn_E': 1.},
+control = sim.Population(1, sim.IF_curr_exp,
+                         {'tau_refrac': 1.},
                          label='control')
 control.record()
+
+inh_ctrl = sim.Population(1, sim.IF_curr_exp, {},
+                          label='inh control')
+
 
 sim.Projection(stim, control,
                sim.OneToOneConnector(weights=w2s),
@@ -26,6 +34,17 @@ sim.Projection(control, control,
                                      delays=d_keep_alive),
                target='excitatory',
                label='keep alive')
+
+sim.Projection(control, inh_ctrl,
+               sim.OneToOneConnector(weights=w_control_inh),
+               target='excitatory',
+               label='control to inh')
+
+sim.Projection(inh_ctrl, control,
+               sim.OneToOneConnector(weights=w_inh_feedback,
+                                     delays=d_inh_feedback),
+               target='inhibitory',
+               label='control to inh')
 
 sim.run(1000)
 
