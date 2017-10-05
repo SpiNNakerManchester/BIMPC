@@ -14,7 +14,8 @@ from vision.retina import Retina, dvs_modes, MERGED
 from vision.sim_tools import dump_compressed
 from vision.sim_tools.connectors import mapping_funcs as mapf
 from vision.sim_tools.vis import RetinaVisualiser
-from vision.spike_tools.vis.vis_tools import plot_in_out_spikes
+from vision.spike_tools.vis.vis_tools import plot_in_out_spikes, video_from_spike_array, \
+                        imgs_in_T_from_spike_array, images_to_video
 
 import matplotlib.pyplot as plt
 
@@ -48,7 +49,8 @@ def delete_prev_run():
 
             os.remove(os.path.join(os.getcwd(), file))
 
-def plot_spikes(spikes_dict, cam_split_spikes=None):
+def plot_spikes(spikes_dict, cam_split_spikes=None,
+                produce_video=False, shapes_dict=None):
     if cam_split_spikes is not None:
         for ch in cam_split_spikes:
             print("plotting cam %s"%ch)
@@ -85,10 +87,20 @@ def plot_spikes(spikes_dict, cam_split_spikes=None):
                                'game_retina_%s_%s.pdf'%(ch, pop),
                                in_color, pop, ch)
 
+    if produce_video:
+        for pop in spikes_dict['on']:
+            # off_spikes = spikes_dict['off'][pop]['ganglion']
+            on_spikes = spikes_dict['on'][pop]['ganglion']
 
-view_game = True if 1 else False
+            video_from_spike_array(on_spikes, shapes_dict[pop]['width'],
+                                   shapes_dict[pop]['height'],
+                                   0, 100000000, 20,
+                                   out_array=True, fps=50, up_down=1,
+                                   title='test_game_with_retina_%s'%pop)
+
+view_game = True if 0 else False
 view_retina = True if 0 else False
-record_retina = True if 0 and (not (view_retina or view_game))else False
+record_retina = True if 1 and (not (view_retina or view_game))else False
 
 X_BITS = 8
 Y_BITS = 8
@@ -152,19 +164,19 @@ if view_retina:
     print(ret_ports_dict)
 
 # Create spike injector to inject keyboard input into simulation
-key_input = sim.Population(3, SpikeInjector, {"port": 12367}, label="key_input")
-if not record_retina:
-    key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["key_input"])
-
-# Connect key spike injector to breakout population
-sim.Projection(key_input, breakout_pop, sim.AllToAllConnector(weights=2))
+# key_input = sim.Population(3, SpikeInjector, {"port": 12367}, label="key_input")
+# if not record_retina:
+#     key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["key_input"])
+#
+# # Connect key spike injector to breakout population
+# sim.Projection(key_input, breakout_pop, sim.AllToAllConnector(weights=2))
 
 # Create visualiser
-if not record_retina and view_game:
-    visualiser = Visualiser(
-        UDP_PORT, key_input_connection,
-        x_res=X_RESOLUTION, y_res=Y_RESOLUTION,
-        x_bits=X_BITS, y_bits=Y_BITS)
+# if not record_retina and view_game:
+#     visualiser = Visualiser(
+#         UDP_PORT, key_input_connection,
+#         x_res=X_RESOLUTION, y_res=Y_RESOLUTION,
+#         x_bits=X_BITS, y_bits=Y_BITS)
 
 # if view_retina:
 #     print("\n\nView retina :D ----------------------- \n")
@@ -181,8 +193,8 @@ print("\nTime to execute sim.run() = {:f} minutes".format(
 #     ret_vis.show()
 
 # Show visualiser (blocking)
-if not record_retina and view_game:
-    visualiser.show()
+# if not record_retina and view_game:
+#     visualiser.show()
 
 
 
@@ -194,7 +206,7 @@ if record_retina:
     # for ch in retina.cam:
     #     cam_split_spikes[ch] = retina.cam[ch].getSpikes(compatible_output=True)
 
-    plot_spikes(retina_spikes)
+    plot_spikes(retina_spikes, produce_video=False, shapes_dict=retina.shapes)
     dump_compressed(retina_spikes, "game_plus_retina_spikes.pickle")
 # End simulation
 sim.end()

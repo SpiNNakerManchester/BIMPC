@@ -29,7 +29,7 @@ izk_neurons   = True if 1 else False
 num_neurons = 1
 num_exc = 1
 
-w2s   = 4.8
+w2s   = 6.98125
 # w2s   = 1.78681 # for 20 ms tau_m
 w_max = w2s*1.
 
@@ -65,9 +65,11 @@ source = sim.Population(num_exc, sim.SpikeSourceArray,
 
 
 if test_exc:
-    target = sim.Population(num_exc, cell, {}, label='Target (EXC)')
+    target = sim.Population(num_exc, cell, {'tau_syn_E': 3.0, 'tau_syn_I': 3.0,},
+                            label='Target (EXC)')
 else:
-    target = sim.Population(num_exc, cell, {}, label='Target (INH)')
+    target = sim.Population(num_exc, cell, {'tau_syn_E': 3.0, 'tau_syn_I': 3.0,},
+                            label='Target (INH)')
 
 source.record()
 target.record()
@@ -106,7 +108,7 @@ fig = plt.figure()
 ax = plt.subplot(1, 1, 1)
 plt.plot([t for _, t, _ in voltage], [v for _, _, v in voltage])
 plt.draw()
-plt.savefig("characterize_neuron_voltage.png", dpi=300)
+plt.savefig("characterize_neuron_voltage.pdf", dpi=300)
 
 # Spikes
 fig = plt.figure()
@@ -121,7 +123,7 @@ plt.plot(spkts, nids, 'ob', markersize=4)
 plt.ylim(-1, num_neurons+1)
 plt.draw()
 plt.margins(0.05, 0.05)
-plt.savefig("characterize_spike_activity.png", dpi=300)
+plt.savefig("characterize_spike_activity.pdf", dpi=300)
 # plt.show()
 plt.close(fig)
 

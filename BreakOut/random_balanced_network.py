@@ -12,9 +12,8 @@
 #                }
 
 DEFAULT_CFG = {'input_noise_rate': 5.,
-               'exc_noise_rate': 250.,
-               'inh_noise_rate': 250.,
-               'w_noise': 0.4,
+               'exc_noise_rate': 250., 'inh_noise_rate': 250., 'w_noise': 0.4,
+               'exc_noise_start': 10., 'inh_noise_start': 0.,
                'w_exc': {'prob': 0.1, 'mu': 0.4, 'sigma': 0.1, 'low': 0, 'high': 20.},
                'd_exc': {'prob': 0.1, 'mu': 1.5, 'sigma': 0.75, 'low': 1., 'high': 14.4},
                'w_inh': {'prob': 0.1, 'mu': 2.0, 'sigma': 0.1, 'low': 0, 'high': 20.},
@@ -62,11 +61,14 @@ class RandomBalancedNetwork():
         pops['noise'] = {}
         pops['noise']['exc'] = sim.Population(
                                     self._n_exc, sim.SpikeSourcePoisson,
-                                    {'rate': cfg['exc_noise_rate']},
+                                    {'rate': cfg['exc_noise_rate'],
+                                     'start': cfg['exc_noise_start']},
                                     label='excitatory noise input')
         pops['noise']['inh'] = sim.Population(
                                     self._n_inh, sim.SpikeSourcePoisson,
-                                    {'rate': cfg['inh_noise_rate']},
+                                    {'rate': cfg['inh_noise_rate'],
+                                     'start': cfg['inh_noise_start']
+                                    },
                                     label='inhibitory noise input')
 
         self._pops = pops

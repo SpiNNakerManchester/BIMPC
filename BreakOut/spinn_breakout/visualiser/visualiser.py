@@ -9,6 +9,7 @@ import datetime
 
 # from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import cv2
+import io
 
 BRIGHT_GREEN = (0.0, 0.9, 0.0)
 VIDEO_GREEN = np.array([0, 230, 0])
@@ -38,8 +39,8 @@ class Visualiser(object):
     # How many bits are used to represent colour
     colour_bits = 1
 
-    def __init__(self, udp_port, key_input_connection=None,
-                 x_res=160, y_res=128, x_bits=8, y_bits=8):
+    def __init__(self, udp_port, key_input_connection=None, scale=4,
+                 x_res=160, y_res=128, x_bits=8, y_bits=8, fps=60):
         # Reset input state
         self.input_state = InputState.idle
 
@@ -62,7 +63,9 @@ class Visualiser(object):
 
         self.y_res=y_res
         self.x_res=x_res
-        self.bat_width=32
+        self.bat_width=16
+        self.fps = fps
+        self.scale = scale
 
         # Open socket to receive datagrams
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -73,7 +76,7 @@ class Visualiser(object):
         cmap = col.ListedColormap(["black", BRIGHT_GREEN])
 
         # Create image plot to display game screen
-        self.fig = plt.figure("BreakOut")
+        self.fig = plt.figure("BreakOut", figsize=(8, 6))
         self.axis = plt.subplot(1,1,1)
         # self.ion = plt.ion()
         self.image_data = np.zeros((y_res, x_res))
@@ -94,33 +97,41 @@ class Visualiser(object):
         self.axis.set_yticklabels([])
         self.axis.axes.get_xaxis().set_visible(False)
 
-        self.scale = 5
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        self.video_data = np.zeros((y_res, x_res, 3), dtype='uint8')
+        self.video_data = np.zeros((self.y_res, self.x_res, 3), dtype='uint8')
+        # self.video_data = cv2.imread("temp_frame.png")
+        self.video_shape = (self.x_res*self.scale, self.y_res*self.scale)
+        self.dsize = (self.y_res*self.scale, self.x_res*self.scale)
+
         self.video_writer = cv2.VideoWriter(
-                                "breakout_output_%s.m4v"%
-                                    datetime.datetime.now().
-                                        strftime("%Y-%m-%d___%H-%M-%S"),
-                                fourcc, 50.0,
-                                (self.x_res*self.scale, self.y_res*self.scale),
-                                isColor=True)
+            "breakout_output_%s.m4v" %
+            datetime.datetime.now().
+            strftime("%Y-%m-%d___%H-%M-%S"),
+            fourcc, self.fps,
+            self.video_shape,
+            isColor=True)
+
     # ------------------------------------------------------------------------
     # Public methods
     # ------------------------------------------------------------------------
     def show(self):
         # Play animation
+        interval = (1000./self.fps)
         self.animation = animation.FuncAnimation(self.fig, self._update,
-                                                 interval=20.0, blit=False)
+                                                 interval=interval,
+                                                 blit=False)
         # Show animated plot (blocking)
         try:
             plt.show()
         except:
             pass
 
+
     # ------------------------------------------------------------------------
     # Private methods
     # ------------------------------------------------------------------------
     def _update(self, frame):
+
         # If state isn't idle, send spike to key input
         if self.input_state != InputState.idle and self.key_input_connection:
             self.key_input_connection.send_spike("key_input", self.input_state)
@@ -189,22 +200,44 @@ class Visualiser(object):
                     # Update displayed score count
                     self.score_text.set_text("%u" % self.score)
 
+                if self.score > 0:
+                    # print("pos score %d"%self.score)
+                    self.video_data[0:1, :, :] = [100, 255, 255]
+                elif self.score < 0:
+                    # print("neg score %d"%self.score)
+                    self.video_data[0:1, :, :] = [255, 100, 255]
+                else:
+                    # print("score 0")
+                    self.video_data[0:1, :, :] = [200, 200, 200]
+
         # Set image data
         try:
             self.image.set_array(self.image_data)
-            if message_received:
-                self.video_writer.write(
-                    cv2.resize(
-                        self.video_data,
-                        (self.x_res*self.scale, self.y_res*self.scale),
-                        interpolation=cv2.INTER_NEAREST))
         except NameError:
+            pass
+
+        try:
+            if message_received :
+            #     if not self.first_update:
+            #         buf = io.BytesIO()
+            #         plt.savefig(buf, format='png', dpi=100)
+            #         buf.seek(0)
+            #         self.video_data[:] = cv2.imdecode(
+            #             np.fromstring(buf.read(), np.uint8),
+            #             cv2.IMREAD_COLOR)
+            #     self.video_writer.write(self.video_data)
+
+                self.video_writer.write(
+                    cv2.resize(self.video_data, self.video_shape,
+                               interpolation=cv2.INTER_NEAREST))
+        except:
             pass
 
         # Return list of artists which we have updated
         # **YUCK** order of these dictates sort order
         # **YUCK** score_text must be returned whether it has
         # been updated or not to prevent overdraw
+        # self.first_update = False
         return [self.image, self.score_text]
 
     def _on_key_press(self, event):
