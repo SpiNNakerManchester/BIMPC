@@ -73,8 +73,8 @@ typedef enum
 //----------------------------------------------------------------------------
 // Globals
 //----------------------------------------------------------------------------
-uint ticks;
-uint pkt_count;
+static uint32_t _time;
+uint32_t pkt_count;
 
 
 // initial ball coordinates in fixed-point
@@ -369,7 +369,13 @@ static bool initialize(uint32_t *timer_period)
   {
       return false;
   }
-
+/*
+    simulation_initialise(
+        address_t address, uint32_t expected_app_magic_number,
+        uint32_t* timer_period, uint32_t *simulation_ticks_pointer,
+        uint32_t *infinite_run_pointer, int sdp_packet_callback_priority,
+        int dma_transfer_done_callback_priority)
+*/
   // Get the timing details and set up the simulation interface
   if (!simulation_initialise(data_specification_get_region(REGION_SYSTEM, address),
     APPLICATION_NAME_HASH, timer_period, &simulation_ticks,
@@ -408,10 +414,15 @@ static bool initialize(uint32_t *timer_period)
 
 void timer_callback(uint unused, uint dummy)
 {
+  use(unused);
+  use(dummy);
   // If a fixed number of simulation ticks are specified and these have passed
-  ticks++;
+  //
+//  ticks++;
+  _time++;
+    //this makes it count twice, WTF!?
 
-  if (!infinite_run && ticks >= simulation_ticks)
+  if (!infinite_run && _time >= simulation_ticks)
   {
     //spin1_pause();
     // go into pause and resume state to avoid another tick
@@ -425,7 +436,7 @@ void timer_callback(uint unused, uint dummy)
 
 
     log_info("Exiting on timer.");
-    ticks -= 1;
+    _time -= 1;
     return;
   }
   // Otherwise
@@ -438,7 +449,7 @@ void timer_callback(uint unused, uint dummy)
       //log_info("pkts: %u   L: %u   R: %u", pkt_count, move_count_l, move_count_r);
       // If this is the first update, draw bat as
       // collision detection relies on this
-      if(ticks == FRAME_DELAY)
+      if(_time == FRAME_DELAY)
       {
         // Draw bat
         for (int i = x_bat; i < (x_bat + bat_len); i++)
@@ -452,6 +463,8 @@ void timer_callback(uint unused, uint dummy)
       update_frame();
     }
   }
+//  log_info("time %u", ticks);
+//  log_info("time %u", _time);
 }
 
 void mc_packet_received_callback(uint key, uint payload)
@@ -557,13 +570,15 @@ void c_main(void)
   pkt_count = 0;
 
   // Set timer tick (in microseconds)
+  log_info("setting timer tick callback for %d microseconds",
+              timer_period);
   spin1_set_timer_tick(timer_period);
 
   // Register callback
   spin1_callback_on(TIMER_TICK, timer_callback, 2);
   spin1_callback_on(MC_PACKET_RECEIVED, mc_packet_received_callback, -1);
 
-  ticks = UINT32_MAX;
+  _time = UINT32_MAX;
 
   simulation_run();
 

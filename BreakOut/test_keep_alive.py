@@ -8,7 +8,8 @@ w_keep_alive = w2s
 w_control_inh = w2s*0.25
 w_inh_feedback = w2s*2.
 d_keep_alive = 2
-d_inh_feedback = 20
+d_inh_feedback = 30
+d_inh_feedforward = 30
 sim.setup(timestep=1., min_delay=1., max_delay=32.)
 
 sim.set_number_of_neurons_per_core('IF_curr_exp', 50)
@@ -36,7 +37,8 @@ sim.Projection(control, control,
                label='keep alive')
 
 sim.Projection(control, inh_ctrl,
-               sim.OneToOneConnector(weights=w_control_inh),
+               sim.OneToOneConnector(weights=w_control_inh,
+                                     delays=d_inh_feedforward),
                target='excitatory',
                label='control to inh')
 

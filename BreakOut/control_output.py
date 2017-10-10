@@ -5,6 +5,8 @@ DEFAULT_CONFIG = dict(w2s=W2S,
                       w_inh_feedback = W2S*2.,
                       d_keep_alive = 2,
                       d_inh_feedback = 20,
+                      d_inh_feedforward = 20,
+                      tau_refrac = 2.,
                       label='control')
 
 class ControlOutput():
@@ -27,7 +29,7 @@ class ControlOutput():
         pops = {}
 
         pops['main'] = sim.Population(self.num_neurons,
-                            sim.IF_curr_exp, {'tau_refrac': 1.},
+                            sim.IF_curr_exp, {'tau_refrac': cfg['tau_refrac']},
                             label="{} main".format(cfg['label']))
 
         pops['inh'] = sim.Population(self.num_neurons,
@@ -55,7 +57,8 @@ class ControlOutput():
         projs['main2inh'] = sim.Projection(
                                 self.pops['main'], self.pops['inh'],
                                 sim.OneToOneConnector(
-                                    weights=cfg['w_control_inh']),
+                                    weights=cfg['w_control_inh'],
+                                    delays=cfg['d_inh_feedforward']),
                                 target='excitatory',
                                 label='control to inh')
 

@@ -216,13 +216,15 @@ RET_CFG = {'record': {'voltages': False,
 
 RET_MODE = dvs_modes[MERGED]
 
-LEFT_CTRL_CFG = dict(w2s=5., w_keep_alive = 5., w_control_inh = 5.*0.25,
-                     w_inh_feedback = 5.*2., d_keep_alive = 2,
-                     d_inh_feedback = 20, label='LEFT control')
+LEFT_CTRL_CFG = {'w2s': 5., 'w_keep_alive': 5., 'w_control_inh': 5.*0.25,
+                 'w_inh_feedback': 5.*2., 'd_keep_alive': 2,
+                 'd_inh_feedback': 20, 'd_inh_feedforward': 5,
+                 'label':'LEFT control', 'tau_refrac': 2.}
 
-RIGHT_CTRL_CFG = dict(w2s=5., w_keep_alive = 5., w_control_inh = 5.*0.25,
-                      w_inh_feedback = 5.*2., d_keep_alive = 2,
-                      d_inh_feedback = 20, label='RIGHT control')
+RIGHT_CTRL_CFG = {'w2s':5., 'w_keep_alive': 5., 'w_control_inh': 5.*0.25,
+                  'w_inh_feedback': 5.*2., 'd_keep_alive': 2,
+                  'd_inh_feedback': 20, 'd_inh_feedforward': 5,
+                  'label':'RIGHT control', 'tau_refrac': 2.}
 
 ########################################################################
 ########################################################################
@@ -234,7 +236,7 @@ view_game = switch(1)
 view_retina = switch(0)
 record_retina = switch( 0 and (not (view_retina or view_game)) )
 # record_control = switch(1 and not view_game)
-record_control = switch(1 and (not do_full_run))
+record_control = switch(0 and (not do_full_run))
 
 use_punishment = switch(0)
 
@@ -259,7 +261,7 @@ delete_prev_run()
 # Setup pyNN simulation
 sim.setup(timestep=1.0, min_delay=1., max_delay=144.)
 sim.set_number_of_neurons_per_core(sim.IF_curr_exp_supervision, 50)
-sim.set_number_of_neurons_per_core(sim.IF_curr_exp, 60)
+sim.set_number_of_neurons_per_core(sim.IF_curr_exp, 50)
 # sim.set_number_of_neurons_per_core(sim.IF_curr_exp, 100)
 # sim.set_number_of_neurons_per_core(sim.IF_curr_exp, 50)
 # sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, 1000)
@@ -267,14 +269,17 @@ sim.set_number_of_neurons_per_core(sim.IF_curr_exp, 60)
 # sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, 1000)
 
 if do_full_run:
-    hours = 2
-    n_loops = 3 * hours
+    hours = 96
+    # hours = 48
+    # hours = 6
+    n_loops = int( 0.5 * hours )
     run_time = hours * 60 * 60 * 1000.
 else:
-    n_loops = 1
     if record_control:
+        n_loops = 1
         run_time = n_loops * 1 * 60 *1000.
     else:
+        n_loops = 5
         run_time = n_loops * 20 * 60 * 1000.
 
 num_rl_neurons = 100
@@ -288,7 +293,7 @@ tau_c = 1000.
 tau_d = 200.
 noise_rate = 10
 # conn_prob = 0.03
-conn_prob = 0.3
+conn_prob = 1.
 noise_conn_prob = 0.1
 inh_conn_prob = 0.1
 w2s = 4.8
@@ -308,7 +313,7 @@ w_inh  = w2s*(0.25)
 w_opp_inh  = w2s*(0.25)
 w_ctrl = w2s*(1./1.0)
 w_keep_alive = w2s*(0.9)
-w_wta = agent_w2s*(0.80)
+w_wta = agent_w2s*(0.8)
 # ######################################################################
 #  P  O  P  U  L  A  T  I  O  N  S
 # ######################################################################
@@ -550,7 +555,10 @@ recorded_weights = []
 weights = {}
 
 for loop in range(n_loops):
-    print("\n\nRUNNING Loop %d/%d (%d ms)\n"%(loop+1, n_loops, run_time//n_loops))
+    print("************************************************************")
+    print("\n\nRUNNING Loop %d/%d (%d ms)\n\n"%
+            (loop+1, n_loops, run_time//n_loops))
+    print("************************************************************")
     start_time = time.time()
     sim.run(run_time//n_loops)
     print("\nTime to execute sim.run() = {:f} minutes".format(

@@ -146,8 +146,9 @@ def groups_connectivity(num_exc, num_inh, group_ids, weight=4.):
     return {'group_to_exc': g2e, 'group_to_inh': g2i}
 
 
-neurons_per_core = 50
-sources_per_core = 100
+neurons_per_core = 10
+sources_per_core = 50
+neurons_mult = 10.
 
 ms = 1000.
 time_step = 1
@@ -196,7 +197,7 @@ e_delay = 2.
 # num_neurons = 50
 # num_neurons = 200
 # num_neurons = 500
-neurons_mult = 1.
+# neurons_mult = 20.
 num_neurons = 1000*neurons_mult
 num_exc = int(num_neurons*0.8)
 num_inh = int(num_neurons - num_exc)
@@ -782,8 +783,12 @@ for loop in range(num_loops):
 
         plt.margins(0.1, 0.1)
         plt.draw()
+
+        if not os.path.isdir(os.path.join(os.getcwd(), 'spike_activity_images')):
+            os.makedirs(os.path.join(os.getcwd(), 'spike_activity_images'))
+
         plt.savefig("spike_activity_images/spike_activity_%s_from_sec_%06d_-_to_sec_%06d.png"%
-                    (spike_type, (loop*sim_time + start_t)//1000, (loop*sim_time + end_t)//1000), 
+                (spike_type, (loop*sim_time + start_t)//1000, (loop*sim_time + end_t)//1000),
                     dpi=300)
 
         plt.close(fig)
