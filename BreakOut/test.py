@@ -1,13 +1,14 @@
 import spynnaker7.pyNN as sim
-from spynnaker_external_devices_plugin.pyNN.connections.\
+
+
+from spynnaker.pyNN.connections.\
     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
 from spynnaker.pyNN.spynnaker_external_device_plugin_manager import \
     SpynnakerExternalDevicePluginManager as ex
 import spinn_breakout
 
 # Layout of pixels
-from spynnaker.pyNN.models.utility_models.spike_injector import \
-    SpikeInjector
+from spynnaker.pyNN.models.utility_models.spike_injector import SpikeInjector
 from spinn_breakout.visualiser.visualiser import Visualiser
 
 X_BITS = 8

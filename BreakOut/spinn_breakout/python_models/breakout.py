@@ -113,8 +113,9 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         self._height_bits = numpy.uint32(numpy.ceil(numpy.log2(height)))
 
         self._n_neurons = (1 << (self._width_bits + self._height_bits +
-                                 self._colour_bits))
-
+                                 self._colour_bits + 1))
+        print self._width_bits + self._height_bits + self._colour_bits
+        assert self._n_neurons - 1 == 0x3FFFF, self._n_neurons
         # Superclasses
         ApplicationVertex.__init__(
             self, label, constraints, self.n_atoms)
@@ -168,6 +169,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
 
         # **TODO** should we calculate this automatically
         # based on log2 of width and height?
+        assert self._n_neurons - 1  == 0x3FFFF, self._n_neurons
         return self._n_neurons
 
     # ------------------------------------------------------------------------

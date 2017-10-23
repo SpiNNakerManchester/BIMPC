@@ -27,6 +27,17 @@
 #define GAME_WIDTH  160
 #define GAME_HEIGHT 128
 
+#define BRICK_WIDTH  16
+#define BRICK_HEIGHT 8
+#define BRICK_LAYER_UPPER_LIMIT 48
+#define BRICK_LAYER_OFFSET (GAME_WIDTH - BRICK_LAYER_UPPER_LIMIT)
+
+
+#define BRICKS_PER_ROW  (GAME_WIDTH / BRICK_WIDTH)
+#define BRICKS_PER_COLUMN  ((GAME_HEIGHT - (2 * BRICK_LAYER_UPPER_LIMIT)) / BRICK_HEIGHT)
+
+
+
 // Ball outof play time (frames)
 #define OUT_OF_PLAY 100
 
@@ -50,11 +61,14 @@ typedef enum
 {
   COLOUR_HARD       = 0x8,
   COLOUR_SOFT       = 0x0,
+  COLOUR_BRICK      = 0x10,
 
   COLOUR_BACKGROUND = COLOUR_SOFT | 0x1,
   COLOUR_BAT        = COLOUR_HARD | 0x6,
   COLOUR_BALL       = COLOUR_HARD | 0x7,
   COLOUR_SCORE      = COLOUR_SOFT | 0x6,
+  COLOUR_BRICK_ON   = COLOUR_BRICK | 0x0,
+  COLOUR_BRICK_OFF  = COLOUR_BRICK | 0x1
 } colour_t;
 
 typedef enum
@@ -79,7 +93,10 @@ uint32_t pkt_count;
 
 // initial ball coordinates in fixed-point
 static int x = (GAME_WIDTH / 4) * FACT;
-static int y = (GAME_HEIGHT / 2) * FACT;
+static int y = (GAME_HEIGHT - GAME_HEIGHT /4) * FACT;
+
+static bool bricks[BRICKS_PER_COLUMN][BRICKS_PER_ROW];
+bool print_bricks  = true;
 
 // initial ball velocity in fixed-point
 static int u = 1 * FACT;
@@ -136,10 +153,10 @@ static inline void add_score_down_event()
   log_debug("Score down");
 }
 
-static inline void add_event(int i, int j, colour_t col)
+void add_event(int i, int j, colour_t col, bool bricked)
 {
   const uint32_t colour_bit = (col == COLOUR_BACKGROUND) ? 0 : 1;
-  const uint32_t spike_key = key | (SPECIAL_EVENT_MAX + (i << 9) + (j << 1) + colour_bit);
+  const uint32_t spike_key = key | (SPECIAL_EVENT_MAX + (i << 10) + (j << 2) + (bricked<<1) + colour_bit);
 
   spin1_send_mc_packet(spike_key, 0, NO_PAYLOAD);
   log_debug("%d, %d, %u, %08x", i, j, col, spike_key);
@@ -152,9 +169,12 @@ static inline colour_t get_pixel_col (int i, int j)
 }
 
 // inserts pixel colour within word
-static inline void set_pixel_col (int i, int j, colour_t col)
+static inline void set_pixel_col (int i, int j, colour_t col, bool bricked)
 {
-    if (col != get_pixel_col(i, j))
+    if (bricked) {
+        add_event (i, j, col, bricked);
+    }
+    else if (col != get_pixel_col(i, j))
     {
       /*  //just update bat pixels in game frame
         if (j==GAME_HEIGHT-1)
@@ -167,9 +187,29 @@ static inline void set_pixel_col (int i, int j, colour_t col)
             add_event (i, j, col);
         }*/
         frame_buff[i / 8][j] = (frame_buff[i / 8][j] & ~(0xF << ((i % 8) * 4))) | ((int)col << ((i % 8)*4));
-        add_event (i, j, col);
+        add_event (i, j, col, false);
     }
 }
+
+static inline bool is_a_brick(int x, int y) // x - width, y- height?
+{
+    int pos_x=0, pos_y=0;
+
+    if ( y <= BRICK_LAYER_OFFSET && y > BRICK_LAYER_UPPER_LIMIT) {
+        pos_x = x / BRICK_WIDTH;
+        pos_y = (y - BRICK_LAYER_UPPER_LIMIT) / BRICK_HEIGHT;
+        bool val = bricks[pos_y][pos_x];
+        bricks[pos_y][pos_x] = false;
+        add_event((pos_x * BRICK_WIDTH),
+                      (pos_y* BRICK_HEIGHT + BRICK_LAYER_UPPER_LIMIT),
+                      COLOUR_BACKGROUND, val);
+//        log_info("%d %d %d %d", x, y, pos_x, pos_y);
+        return val;
+    }
+    return false;
+}
+
+
 
 //----------------------------------------------------------------------------
 // Static functions
@@ -184,6 +224,11 @@ static void init_frame ()
       frame_buff[i][j] = 0x11111111 * COLOUR_BACKGROUND;
     }
   }
+
+  for (int i =0; i<BRICKS_PER_COLUMN; i++)
+    for (int j=0; j<BRICKS_PER_ROW; j++) {
+        bricks[i][j] = true;
+        }
 }
 
 static void update_frame ()
@@ -244,7 +289,7 @@ static void update_frame ()
     // Draw bat pixels
     for (int i = x_bat; i < (x_bat + bat_len); i++)
     {
-      set_pixel_col(i, GAME_HEIGHT-1, COLOUR_BAT);
+      set_pixel_col(i, GAME_HEIGHT-1, COLOUR_BAT, false);
     }
 
 
@@ -252,11 +297,11 @@ static void update_frame ()
     // Remove pixels left over from old bat
     if (x_bat > old_xbat)
     {
-      set_pixel_col(old_xbat, GAME_HEIGHT-1, COLOUR_BACKGROUND);
+      set_pixel_col(old_xbat, GAME_HEIGHT-1, COLOUR_BACKGROUND, false);
     }
     else if (x_bat < old_xbat)
     {
-      set_pixel_col(old_xbat + bat_len, GAME_HEIGHT-1, COLOUR_BACKGROUND);
+      set_pixel_col(old_xbat + bat_len, GAME_HEIGHT-1, COLOUR_BACKGROUND, false);
     }
 
    //only draw left edge of bat pixel
@@ -269,7 +314,7 @@ static void update_frame ()
   if (out_of_play == 0)
   {
     // clear pixel to background
-    set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND);
+    set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND, false);
 
     // move ball in x and bounce off sides
     x += u;
@@ -295,8 +340,10 @@ static void update_frame ()
     }
 
 //detect collision
-    // if we hit something hard!
-    if (get_pixel_col(x / FACT, y / FACT) & COLOUR_HARD)
+    // if we hit something hard! -- paddle or brick
+    bool bricked = is_a_brick(x/ FACT, y/ FACT);
+
+    if (get_pixel_col(x / FACT, y / FACT) & COLOUR_HARD || bricked)
     {
       if (x/FACT < (x_bat+bat_len/4))
       {
@@ -317,7 +364,6 @@ static void update_frame ()
 
       v = -FACT;
       y -= FACT;
-
       // Increase score
       add_score_up_event();
     }
@@ -348,7 +394,7 @@ static void update_frame ()
     // draw ball
     else
     {
-      set_pixel_col(x/FACT, y/FACT, COLOUR_BALL);
+      set_pixel_col(x/FACT, y/FACT, COLOUR_BALL, false);
     }
   }
   else
@@ -419,8 +465,23 @@ void timer_callback(uint unused, uint dummy)
   // If a fixed number of simulation ticks are specified and these have passed
   //
 //  ticks++;
-  _time++;
     //this makes it count twice, WTF!?
+
+  _time++;
+
+   if (print_bricks) {
+    print_bricks = false;
+    for (int i =0; i<BRICKS_PER_COLUMN; i++)
+        for (int j=0; j<BRICKS_PER_ROW; j++) {
+            if (bricks[i][j]) {
+                set_pixel_col(j * BRICK_WIDTH,
+                              i* BRICK_HEIGHT + BRICK_LAYER_UPPER_LIMIT,
+                              COLOUR_BRICK_ON, true);
+
+            }
+        }
+    log_info("printed bricks");
+   }
 
   if (!infinite_run && _time >= simulation_ticks)
   {
@@ -454,7 +515,7 @@ void timer_callback(uint unused, uint dummy)
         // Draw bat
         for (int i = x_bat; i < (x_bat + bat_len); i++)
         {
-          set_pixel_col(i, GAME_HEIGHT-1, COLOUR_BAT);
+          set_pixel_col(i, GAME_HEIGHT-1, COLOUR_BAT, false);
         }
       }
 
@@ -581,5 +642,8 @@ void c_main(void)
   _time = UINT32_MAX;
 
   simulation_run();
+
+
+
 
 }
