@@ -101,7 +101,7 @@ class Visualiser(object):
         # self.ion = plt.ion()
         self.image_data = np.zeros((y_res, x_res))
         self.image = self.axis.imshow(self.image_data, interpolation="nearest",
-                                      cmap=cmap, vmin=0.0, vmax=4.0)
+                                      cmap=cmap, vmin=0.0, vmax=5.0)
 
         # Draw score using textbox
         self.score_text = self.axis.text(0.5, 1.0, "0", color=BRIGHT_GREEN,
