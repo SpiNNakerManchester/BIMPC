@@ -27,11 +27,11 @@
 #define GAME_WIDTH  160
 #define GAME_HEIGHT 128
 
-#define BRICK_WIDTH  16
-#define BRICK_HEIGHT 8
+#define BRICK_WIDTH  10
+#define BRICK_HEIGHT 6
 
-#define BRICK_LAYER_OFFSET 28
-#define BRICK_LAYER_HEIGHT 40
+#define BRICK_LAYER_OFFSET 12
+#define BRICK_LAYER_HEIGHT 48
 #define BRICK_LAYER_WIDTH 160
 
 
@@ -97,6 +97,8 @@ uint32_t pkt_count;
 static int x = (GAME_WIDTH / 4) * FACT;
 static int y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
 
+static int current_number_of_bricks;
+
 static bool bricks[BRICKS_PER_COLUMN][BRICKS_PER_ROW];
 bool print_bricks  = true;
 
@@ -110,7 +112,7 @@ static int v = -1 * FACT;
 static int x_bat   = 40;
 
 // bat length in pixels
-static int bat_len = 32;
+static int bat_len = 16;
 
 // frame buffer: 160 x 128 x 4 bits: [hard/soft, R, G, B]
 static int frame_buff[GAME_WIDTH / 8][GAME_HEIGHT];
@@ -205,23 +207,25 @@ static inline bool is_a_brick(int x, int y) // x - width, y- height?
         pos_x = x / BRICK_WIDTH;
         pos_y = (y - BRICK_LAYER_OFFSET) / BRICK_HEIGHT;
         bool val = bricks[pos_y][pos_x];
-        if (pos_y>= BRICKS_PER_COLUMN) {
-            log_error("%d", pos_y);
-            rt_error(RTE_SWERR);
-        }
-        if (pos_x>= BRICKS_PER_ROW) {
-            log_error("%d", pos_x);
-            rt_error(RTE_SWERR);
-        }
+//        if (pos_y>= BRICKS_PER_COLUMN) {
+//            log_error("%d", pos_y);
+//            rt_error(RTE_SWERR);
+//        }
+//        if (pos_x>= BRICKS_PER_ROW) {
+//            log_error("%d", pos_x);
+//            rt_error(RTE_SWERR);
+//        }
         bricks[pos_y][pos_x] = false;
         if (val) {
             brick_corner_x = pos_x;
             brick_corner_y = pos_y;
+            current_number_of_bricks--;
         }
         else {
             brick_corner_x = -1;
             brick_corner_y = -1;
         }
+
 
 //        log_info("%d %d %d %d", x, y, pos_x, pos_y);
         return val;
@@ -251,6 +255,7 @@ static void init_frame ()
     for (int j=0; j<BRICKS_PER_ROW; j++) {
         bricks[i][j] = true;
         }
+  current_number_of_bricks = BRICKS_PER_COLUMN * BRICKS_PER_ROW;
 }
 
 static void update_frame ()
@@ -355,17 +360,15 @@ static void update_frame ()
     if ( bricked ) {
         int brick_x = brick_corner_x * BRICK_WIDTH;
         int brick_y = (brick_corner_y* BRICK_HEIGHT + BRICK_LAYER_OFFSET);
-        log_info("x-brick_x = %d, %d %d",x/FACT - brick_x, x/FACT, brick_x);
-        log_info("y-brick_y = %d, %d %d",y/FACT - brick_y, y/FACT, brick_y);
+//        log_info("x-brick_x = %d, %d %d",x/FACT - brick_x, x/FACT, brick_x);
+//        log_info("y-brick_y = %d, %d %d",y/FACT - brick_y, y/FACT, brick_y);
         if ( brick_x == x/FACT  || x/FACT == brick_x + BRICK_WIDTH - 1){
             u = -u;
-            log_info("bing");
-//            y += v;
+            x += u;
         }
         if (brick_y  == y/FACT || y/FACT ==  brick_y + BRICK_HEIGHT - 1){
             v = -v;
-            log_info("bong");
-//             x += u;
+            y+= v;
         }
 
         set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND, bricked);
@@ -504,6 +507,30 @@ void timer_callback(uint unused, uint dummy)
     //this makes it count twice, WTF!?
 
   _time++;
+
+   if (!current_number_of_bricks) {
+        for (int i =0; i<BRICKS_PER_COLUMN; i++)
+            for (int j=0; j<BRICKS_PER_ROW; j++) {
+                bricks[i][j] = true;
+                }
+          current_number_of_bricks = BRICKS_PER_COLUMN * BRICKS_PER_ROW;
+          print_bricks = true;
+          v = -1 * FACT;
+      y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
+
+      if(mars_kiss32() > 0xFFFF){
+        u = -u;
+      }
+
+      //randomises initial x location
+      x = GAME_WIDTH;
+
+      while (x >= GAME_WIDTH)
+         x = (int)(mars_kiss32()/x_ratio);
+//      x = (int)(mars_kiss32()%GAME_WIDTH);
+//      log_info("random x = %d", x);
+      x *= FACT;
+   }
 
    if (print_bricks) {
     print_bricks = false;

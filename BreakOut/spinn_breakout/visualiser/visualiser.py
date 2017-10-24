@@ -12,6 +12,7 @@ import datetime
 # from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import cv2
 import io
+import os
 
 BRIGHT_GREEN = (0.0, 0.9, 0.0)
 BRIGHT_RED = (0.9, 0.0, 0.0)
@@ -48,8 +49,8 @@ class SpecialEvent(enum.IntEnum):
 class Visualiser(object):
     # How many bits are used to represent colour
     colour_bits = 2
-    BRICK_WIDTH = 16
-    BRICK_HEIGHT = 8
+    BRICK_WIDTH = 10
+    BRICK_HEIGHT = 6
 
     def __init__(self, udp_port, key_input_connection=None, scale=4,
                  x_res=160, y_res=128, x_bits=8, y_bits=8, fps=60):
@@ -111,6 +112,7 @@ class Visualiser(object):
         # Hook key listeners
         self.fig.canvas.mpl_connect("key_press_event", self._on_key_press)
         self.fig.canvas.mpl_connect("key_release_event", self._on_key_release)
+        self.fig.canvas.mpl_connect('close_event', self.handle_close)
         # Hide grid
         self.axis.grid(False)
         self.axis.set_xticklabels([])
@@ -123,10 +125,15 @@ class Visualiser(object):
         self.video_shape = (self.x_res * self.scale, self.y_res * self.scale)
         self.dsize = (self.y_res * self.scale, self.x_res * self.scale)
 
+        filename = os.path.join(os.getcwd(), "breakout_output_%s.m4v" %
+                    datetime.datetime.now().strftime("%Y-%m-%d___%H-%M-%S"))
+        # print filename
         self.video_writer = cv2.VideoWriter(
-            "breakout_output_%s.m4v" %
-            datetime.datetime.now().
-            strftime("%Y-%m-%d___%H-%M-%S"),
+            filename,
+            fourcc, self.fps,
+            self.video_shape,
+            isColor=True)
+        self.video_writer.open(filename,
             fourcc, self.fps,
             self.video_shape,
             isColor=True)
@@ -145,6 +152,9 @@ class Visualiser(object):
             plt.show()
         except:
             pass
+
+    def handle_close(self, evt):
+        self.video_writer.release()
 
     # ------------------------------------------------------------------------
     # Private methods
@@ -245,22 +255,22 @@ class Visualiser(object):
         except NameError:
             pass
 
-        try:
-            if message_received:
-                #     if not self.first_update:
-                #         buf = io.BytesIO()
-                #         plt.savefig(buf, format='png', dpi=100)
-                #         buf.seek(0)
-                #         self.video_data[:] = cv2.imdecode(
-                #             np.fromstring(buf.read(), np.uint8),
-                #             cv2.IMREAD_COLOR)
-                #     self.video_writer.write(self.video_data)
+        # try:
+        if message_received:
+            #     if not self.first_update:
+            #         buf = io.BytesIO()
+            #         plt.savefig(buf, format='png', dpi=100)
+            #         buf.seek(0)
+            #         self.video_data[:] = cv2.imdecode(
+            #             np.fromstring(buf.read(), np.uint8),
+            #             cv2.IMREAD_COLOR)
+            #     self.video_writer.write(self.video_data)
 
-                self.video_writer.write(
-                    cv2.resize(self.video_data, self.video_shape,
-                               interpolation=cv2.INTER_NEAREST))
-        except:
-            pass
+            self.video_writer.write(
+                cv2.resize(self.video_data, self.video_shape,
+                           interpolation=cv2.INTER_NEAREST))
+        # except:
+        #     pass
 
         # Return list of artists which we have updated
         # **YUCK** order of these dictates sort order
@@ -288,4 +298,4 @@ if __name__ == "__main__":
     UDP_PORT = 17893
     vis = Visualiser(UDP_PORT)
     vis.show()
-    vis.video_writer.release()
+
