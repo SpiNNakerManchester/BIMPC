@@ -29,12 +29,14 @@
 
 #define BRICK_WIDTH  16
 #define BRICK_HEIGHT 8
-#define BRICK_LAYER_UPPER_LIMIT 48
-#define BRICK_LAYER_OFFSET (GAME_HEIGHT - BRICK_LAYER_UPPER_LIMIT)
+
+#define BRICK_LAYER_OFFSET 28
+#define BRICK_LAYER_HEIGHT 40
+#define BRICK_LAYER_WIDTH 160
 
 
-#define BRICKS_PER_ROW  (GAME_WIDTH / BRICK_WIDTH)
-#define BRICKS_PER_COLUMN  ((GAME_HEIGHT - (2 * BRICK_LAYER_UPPER_LIMIT)) / BRICK_HEIGHT)
+#define BRICKS_PER_ROW  (BRICK_LAYER_WIDTH / BRICK_WIDTH)
+#define BRICKS_PER_COLUMN  (BRICK_LAYER_HEIGHT / BRICK_HEIGHT)
 
 
 
@@ -93,7 +95,7 @@ uint32_t pkt_count;
 
 // initial ball coordinates in fixed-point
 static int x = (GAME_WIDTH / 4) * FACT;
-static int y = (GAME_HEIGHT - GAME_HEIGHT /4) * FACT;
+static int y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
 
 static bool bricks[BRICKS_PER_COLUMN][BRICKS_PER_ROW];
 bool print_bricks  = true;
@@ -108,7 +110,7 @@ static int v = -1 * FACT;
 static int x_bat   = 40;
 
 // bat length in pixels
-static int bat_len = 16;
+static int bat_len = 32;
 
 // frame buffer: 160 x 128 x 4 bits: [hard/soft, R, G, B]
 static int frame_buff[GAME_WIDTH / 8][GAME_HEIGHT];
@@ -175,7 +177,7 @@ static inline void set_pixel_col (int i, int j, colour_t col, bool bricked)
 {
     if (bricked) {
         add_event((brick_corner_x * BRICK_WIDTH),
-                      (brick_corner_y* BRICK_HEIGHT + BRICK_LAYER_UPPER_LIMIT),
+                      (brick_corner_y* BRICK_HEIGHT + BRICK_LAYER_OFFSET),
                       COLOUR_BACKGROUND, bricked);
     }
     else if (col != get_pixel_col(i, j))
@@ -199,10 +201,18 @@ static inline bool is_a_brick(int x, int y) // x - width, y- height?
 {
     int pos_x=0, pos_y=0;
 
-    if ( y <= BRICK_LAYER_OFFSET && y > BRICK_LAYER_UPPER_LIMIT) {
+    if ( y >= BRICK_LAYER_OFFSET && y < BRICK_LAYER_OFFSET + BRICK_LAYER_HEIGHT) {
         pos_x = x / BRICK_WIDTH;
-        pos_y = (y - BRICK_LAYER_UPPER_LIMIT) / BRICK_HEIGHT;
+        pos_y = (y - BRICK_LAYER_OFFSET) / BRICK_HEIGHT;
         bool val = bricks[pos_y][pos_x];
+        if (pos_y>= BRICKS_PER_COLUMN) {
+            log_error("%d", pos_y);
+            rt_error(RTE_SWERR);
+        }
+        if (pos_x>= BRICKS_PER_ROW) {
+            log_error("%d", pos_x);
+            rt_error(RTE_SWERR);
+        }
         bricks[pos_y][pos_x] = false;
         if (val) {
             brick_corner_x = pos_x;
@@ -216,6 +226,8 @@ static inline bool is_a_brick(int x, int y) // x - width, y- height?
 //        log_info("%d %d %d %d", x, y, pos_x, pos_y);
         return val;
     }
+    brick_corner_x = -1;
+    brick_corner_y = -1;
     return false;
 }
 
@@ -246,44 +258,30 @@ static void update_frame ()
 // draw bat
   // Cache old bat position
   const uint32_t old_xbat = x_bat;
-//  log_info("key counts left %u, right %u",
-//           left_key_count, right_key_count);
-
-//  if (left_key_count > right_key_count) {
-//    keystate |= KEY_LEFT;
-//    move_count_l++;
-////    log_info("moved left");
-//  }
-//  else if (right_key_count > left_key_count && right_key_count!= 0) {
-////  else if (right_key_count > left_key_count) {
-//    keystate |= KEY_RIGHT;
-//    move_count_r++;
-////    log_info("moved right");
-//  }
-  int move_directon;
+  int move_direction;
   if (right_key_count > left_key_count){
-    move_directon = KEY_RIGHT;
+    move_direction = KEY_RIGHT;
     move_count_r++;
 //    log_info("moved right");
   }
   else if (left_key_count > right_key_count){
-    move_directon = KEY_LEFT;
+    move_direction = KEY_LEFT;
     move_count_l++;
 //    log_info("moved left");
   }
   else{
-    move_directon = 2;
+    move_direction = 2;
 //    log_info("didn't move!");
   }
 
 
   // Update bat and clamp
-  if (move_directon == KEY_LEFT && --x_bat < 0)
+  if (move_direction == KEY_LEFT && --x_bat < 0)
   {
 
     x_bat = 0;
   }
-  else if (move_directon == KEY_RIGHT && ++x_bat > GAME_WIDTH-bat_len-1)
+  else if (move_direction == KEY_RIGHT && ++x_bat > GAME_WIDTH-bat_len-1)
   {
     x_bat = GAME_WIDTH-bat_len-1;
   }
@@ -354,7 +352,31 @@ static void update_frame ()
     // if we hit something hard! -- paddle or brick
     bool bricked = is_a_brick(x/ FACT, y/ FACT);
 
-    if (get_pixel_col(x / FACT, y / FACT) & COLOUR_HARD || bricked)
+    if ( bricked ) {
+        int brick_x = brick_corner_x * BRICK_WIDTH;
+        int brick_y = (brick_corner_y* BRICK_HEIGHT + BRICK_LAYER_OFFSET);
+        log_info("x-brick_x = %d, %d %d",x/FACT - brick_x, x/FACT, brick_x);
+        log_info("y-brick_y = %d, %d %d",y/FACT - brick_y, y/FACT, brick_y);
+        if ( brick_x == x/FACT  || x/FACT == brick_x + BRICK_WIDTH - 1){
+            u = -u;
+            log_info("bing");
+//            y += v;
+        }
+        if (brick_y  == y/FACT || y/FACT ==  brick_y + BRICK_HEIGHT - 1){
+            v = -v;
+            log_info("bong");
+//             x += u;
+        }
+
+        set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND, bricked);
+
+        bricked= false;
+      // Increase score
+      add_score_up_event();
+    }
+
+
+    if (get_pixel_col(x / FACT, y / FACT) & COLOUR_HARD)
     {
       if (x/FACT < (x_bat+bat_len/4))
       {
@@ -373,9 +395,9 @@ static void update_frame ()
         u = FACT;
       }
 
-     if (bricked) {
-        set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND, bricked);
-     }
+//     if (bricked) {
+//        set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND, bricked);
+//     }
       v = -FACT;
       y -= FACT;
       // Increase score
@@ -386,7 +408,7 @@ static void update_frame ()
     if (y >= (GAME_HEIGHT*FACT-v))
     {
       v = -1 * FACT;
-      y = (GAME_HEIGHT / 2)*FACT;
+      y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
 
       if(mars_kiss32() > 0xFFFF){
         u = -u;
@@ -489,7 +511,7 @@ void timer_callback(uint unused, uint dummy)
         for (int j=0; j<BRICKS_PER_ROW; j++) {
             if (bricks[i][j]) {
                 add_event(j * BRICK_WIDTH,
-                              i* BRICK_HEIGHT + BRICK_LAYER_UPPER_LIMIT,
+                              i* BRICK_HEIGHT + BRICK_LAYER_OFFSET,
                               COLOUR_BRICK_ON, true);
 
             }
@@ -648,7 +670,7 @@ void c_main(void)
   log_info("setting timer tick callback for %d microseconds",
               timer_period);
   spin1_set_timer_tick(timer_period);
-  log_info("bricks %x", bricks);
+  log_info("bricks %x", &bricks);
 
   // Register callback
   spin1_callback_on(TIMER_TICK, timer_callback, 2);
