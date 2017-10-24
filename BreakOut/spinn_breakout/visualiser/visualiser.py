@@ -141,10 +141,10 @@ class Visualiser(object):
                                                  interval=interval,
                                                  blit=False)
         # Show animated plot (blocking)
-        # try:
-        plt.show()
-        # except:
-        #     pass
+        try:
+            plt.show()
+        except:
+            pass
 
     # ------------------------------------------------------------------------
     # Private methods

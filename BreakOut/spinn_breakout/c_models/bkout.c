@@ -30,7 +30,7 @@
 #define BRICK_WIDTH  16
 #define BRICK_HEIGHT 8
 #define BRICK_LAYER_UPPER_LIMIT 48
-#define BRICK_LAYER_OFFSET (GAME_WIDTH - BRICK_LAYER_UPPER_LIMIT)
+#define BRICK_LAYER_OFFSET (GAME_HEIGHT - BRICK_LAYER_UPPER_LIMIT)
 
 
 #define BRICKS_PER_ROW  (GAME_WIDTH / BRICK_WIDTH)
@@ -97,6 +97,8 @@ static int y = (GAME_HEIGHT - GAME_HEIGHT /4) * FACT;
 
 static bool bricks[BRICKS_PER_COLUMN][BRICKS_PER_ROW];
 bool print_bricks  = true;
+
+int brick_corner_x=-1, brick_corner_y=-1;
 
 // initial ball velocity in fixed-point
 static int u = 1 * FACT;
@@ -172,7 +174,9 @@ static inline colour_t get_pixel_col (int i, int j)
 static inline void set_pixel_col (int i, int j, colour_t col, bool bricked)
 {
     if (bricked) {
-        add_event (i, j, col, bricked);
+        add_event((brick_corner_x * BRICK_WIDTH),
+                      (brick_corner_y* BRICK_HEIGHT + BRICK_LAYER_UPPER_LIMIT),
+                      COLOUR_BACKGROUND, bricked);
     }
     else if (col != get_pixel_col(i, j))
     {
@@ -187,7 +191,7 @@ static inline void set_pixel_col (int i, int j, colour_t col, bool bricked)
             add_event (i, j, col);
         }*/
         frame_buff[i / 8][j] = (frame_buff[i / 8][j] & ~(0xF << ((i % 8) * 4))) | ((int)col << ((i % 8)*4));
-        add_event (i, j, col, false);
+        add_event (i, j, col, bricked);
     }
 }
 
@@ -200,9 +204,15 @@ static inline bool is_a_brick(int x, int y) // x - width, y- height?
         pos_y = (y - BRICK_LAYER_UPPER_LIMIT) / BRICK_HEIGHT;
         bool val = bricks[pos_y][pos_x];
         bricks[pos_y][pos_x] = false;
-        add_event((pos_x * BRICK_WIDTH),
-                      (pos_y* BRICK_HEIGHT + BRICK_LAYER_UPPER_LIMIT),
-                      COLOUR_BACKGROUND, val);
+        if (val) {
+            brick_corner_x = pos_x;
+            brick_corner_y = pos_y;
+        }
+        else {
+            brick_corner_x = -1;
+            brick_corner_y = -1;
+        }
+
 //        log_info("%d %d %d %d", x, y, pos_x, pos_y);
         return val;
     }
@@ -277,6 +287,7 @@ static void update_frame ()
   {
     x_bat = GAME_WIDTH-bat_len-1;
   }
+
 
 
   // Clear keystate
@@ -362,6 +373,9 @@ static void update_frame ()
         u = FACT;
       }
 
+     if (bricked) {
+        set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND, bricked);
+     }
       v = -FACT;
       y -= FACT;
       // Increase score
@@ -474,7 +488,7 @@ void timer_callback(uint unused, uint dummy)
     for (int i =0; i<BRICKS_PER_COLUMN; i++)
         for (int j=0; j<BRICKS_PER_ROW; j++) {
             if (bricks[i][j]) {
-                set_pixel_col(j * BRICK_WIDTH,
+                add_event(j * BRICK_WIDTH,
                               i* BRICK_HEIGHT + BRICK_LAYER_UPPER_LIMIT,
                               COLOUR_BRICK_ON, true);
 
@@ -634,6 +648,7 @@ void c_main(void)
   log_info("setting timer tick callback for %d microseconds",
               timer_period);
   spin1_set_timer_tick(timer_period);
+  log_info("bricks %x", bricks);
 
   // Register callback
   spin1_callback_on(TIMER_TICK, timer_callback, 2);
