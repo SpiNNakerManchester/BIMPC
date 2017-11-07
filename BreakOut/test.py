@@ -42,7 +42,8 @@ visualiser = Visualiser(
     x_bits=X_BITS, y_bits=Y_BITS)
 
 # Run simulation (non-blocking)
-sim.run(None)
+# sim.run(None)
+sim.run(10000000)
 
 # Show visualiser (blocking)
 visualiser.show()

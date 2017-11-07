@@ -18,7 +18,8 @@ class BreakoutMachineVertex(MachineVertex):
     _BREAKOUT_REGIONS = Enum(
         value="_BREAKOUT_REGIONS",
         names=[('SYSTEM', 0),
-               ('BREAKOUT', 1)])
+               ('BREAKOUT', 1),
+               ('PROVENANCE', 2)])
 
     def __init__(self, resources_required, constraints=None, label=None):
         # Superclasses

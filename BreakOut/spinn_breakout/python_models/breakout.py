@@ -203,6 +203,9 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         spec.reserve_memory_region(
             region=BreakoutMachineVertex._BREAKOUT_REGIONS.BREAKOUT.value,
             size=self.BREAKOUT_REGION_BYTES, label='BreakoutParams')
+        spec.reserve_memory_region(
+            region=BreakoutMachineVertex._BREAKOUT_REGIONS.PROVENANCE.value,
+            size=128, label='BreakoutPROVENANCE')
         # vertex.reserve_provenance_data_region(spec)
 
         # Write setup region

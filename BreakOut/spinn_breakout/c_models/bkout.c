@@ -30,9 +30,13 @@
 #define BRICK_WIDTH  10
 #define BRICK_HEIGHT 6
 
-#define BRICK_LAYER_OFFSET 12
-#define BRICK_LAYER_HEIGHT 48
+#define BRICK_LAYER_OFFSET 30
+#define BRICK_LAYER_HEIGHT 12
 #define BRICK_LAYER_WIDTH 160
+
+
+#define NUMBER_OF_LIVES 5
+#define SCORE_DOWN_EVENTS_PER_DEATH 5
 
 
 #define BRICKS_PER_ROW  (BRICK_LAYER_WIDTH / BRICK_WIDTH)
@@ -89,6 +93,11 @@ typedef enum
 //----------------------------------------------------------------------------
 // Globals
 //----------------------------------------------------------------------------
+
+
+//! Should simulation run for ever? 0 if not
+static uint32_t infinite_run;
+
 static uint32_t _time;
 uint32_t pkt_count;
 
@@ -103,6 +112,7 @@ static bool bricks[BRICKS_PER_COLUMN][BRICKS_PER_ROW];
 bool print_bricks  = true;
 
 int brick_corner_x=-1, brick_corner_y=-1;
+int number_of_lives = NUMBER_OF_LIVES;
 
 // initial ball velocity in fixed-point
 static int u = 1 * FACT;
@@ -126,8 +136,6 @@ static int keystate = 0;
 //! The upper bits of the key value that model should transmit with
 static uint32_t key;
 
-//! Should simulation run for ever? 0 if not
-static uint32_t infinite_run;
 
 //! the number of timer ticks that this model should run for before exiting.
 uint32_t simulation_ticks = 0;
@@ -364,11 +372,9 @@ static void update_frame ()
 //        log_info("y-brick_y = %d, %d %d",y/FACT - brick_y, y/FACT, brick_y);
         if ( brick_x == x/FACT  || x/FACT == brick_x + BRICK_WIDTH - 1){
             u = -u;
-            x += u;
         }
         if (brick_y  == y/FACT || y/FACT ==  brick_y + BRICK_HEIGHT - 1){
             v = -v;
-            y+= v;
         }
 
         set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND, bricked);
@@ -404,7 +410,7 @@ static void update_frame ()
       v = -FACT;
       y -= FACT;
       // Increase score
-      add_score_up_event();
+//      add_score_up_event();
     }
 
 // lost ball
@@ -428,7 +434,16 @@ static void update_frame ()
 
       out_of_play = OUT_OF_PLAY;
       // Decrease score
-      add_score_down_event();
+      number_of_lives--;
+      if (!number_of_lives){
+        for(int i=0; i<SCORE_DOWN_EVENTS_PER_DEATH;i++) {
+            add_score_down_event();
+        }
+        number_of_lives = NUMBER_OF_LIVES;
+      }
+      else {
+        add_score_down_event();
+      }
     }
     // draw ball
     else
@@ -461,15 +476,16 @@ static bool initialize(uint32_t *timer_period)
         uint32_t *infinite_run_pointer, int sdp_packet_callback_priority,
         int dma_transfer_done_callback_priority)
 */
-  // Get the timing details and set up the simulation interface
+  // Get the timing details and set up thse simulation interface
   if (!simulation_initialise(data_specification_get_region(REGION_SYSTEM, address),
     APPLICATION_NAME_HASH, timer_period, &simulation_ticks,
-    &infinite_run, 1, data_specification_get_region(REGION_PROVENANCE, address)))
+    &infinite_run, 1, NULL))
   {
       return false;
   }
   log_info("simulation time = %u", simulation_ticks);
-
+  log_info("infinite run = %d", infinite_run);
+  log_info("provenance address = %x", data_specification_get_region(REGION_PROVENANCE, address));
 
   // Read breakout region
   address_t breakout_region = data_specification_get_region(REGION_BREAKOUT, address);
@@ -550,16 +566,18 @@ void timer_callback(uint unused, uint dummy)
   {
     //spin1_pause();
     // go into pause and resume state to avoid another tick
-    simulation_handle_pause_resume(NULL);
 //    spin1_callback_off(MC_PACKET_RECEIVED);
 
     log_info("move count Left %u", move_count_l);
     log_info("move count Right %u", move_count_r);
+    log_info("infinite_run %d; time %d",infinite_run, _time);
+    log_info("simulation_ticks %d",simulation_ticks);
 //    log_info("key count Left %u", left_key_count);
 //    log_info("key count Right %u", right_key_count);
 
-
     log_info("Exiting on timer.");
+    simulation_handle_pause_resume(NULL);
+
     _time -= 1;
     return;
   }
@@ -698,6 +716,8 @@ void c_main(void)
               timer_period);
   spin1_set_timer_tick(timer_period);
   log_info("bricks %x", &bricks);
+
+  log_info("simulation_ticks %d",simulation_ticks);
 
   // Register callback
   spin1_callback_on(TIMER_TICK, timer_callback, 2);
