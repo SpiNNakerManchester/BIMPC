@@ -59,8 +59,8 @@ typedef enum
 
 typedef enum
 {
-  KEY_LEFT  = 0x0,
-  KEY_RIGHT = 0x1,
+  KEY_RIGHT  = 0x0,
+  KEY_LEFT = 0x1,
 } key_t;
 
 typedef enum
@@ -497,13 +497,12 @@ void mc_packet_received_callback(uint key, uint payload)
   }
 //  else
 /*/
-  // Right
-  if(key & KEY_RIGHT){
-    right_key_count++;
-  }
-  else {
-//  else{
+  // Left
+  if(key & KEY_LEFT){
     left_key_count++;
+  }
+  else {//Right
+    right_key_count++;
   }
 //*/
 //  log_info("mc key %u, L %u, R %u", key, left_key_count, right_key_count);

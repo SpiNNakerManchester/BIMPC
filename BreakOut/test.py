@@ -1,5 +1,7 @@
 import spynnaker7.pyNN as sim
-from spynnaker_external_devices_plugin.pyNN.connections.\
+# from spynnaker_external_devices_plugin.pyNN.connections.\
+#     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
+from spynnaker.pyNN.connections.\
     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
 from spynnaker.pyNN.spynnaker_external_device_plugin_manager import \
     SpynnakerExternalDevicePluginManager as ex

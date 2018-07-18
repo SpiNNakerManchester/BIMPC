@@ -97,19 +97,19 @@ class Visualiser(object):
         self.axis.set_yticklabels([])
         self.axis.axes.get_xaxis().set_visible(False)
 
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        self.video_data = np.zeros((self.y_res, self.x_res, 3), dtype='uint8')
-        # self.video_data = cv2.imread("temp_frame.png")
-        self.video_shape = (self.x_res*self.scale, self.y_res*self.scale)
-        self.dsize = (self.y_res*self.scale, self.x_res*self.scale)
-
-        self.video_writer = cv2.VideoWriter(
-            "breakout_output_%s.m4v" %
-            datetime.datetime.now().
-            strftime("%Y-%m-%d___%H-%M-%S"),
-            fourcc, self.fps,
-            self.video_shape,
-            isColor=True)
+        #fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        # self.video_data = np.zeros((self.y_res, self.x_res, 3), dtype='uint8')
+        # # self.video_data = cv2.imread("temp_frame.png")
+        # self.video_shape = (self.x_res*self.scale, self.y_res*self.scale)
+        # self.dsize = (self.y_res*self.scale, self.x_res*self.scale)
+        #
+        # self.video_writer = cv2.VideoWriter(
+        #     "breakout_output_%s.m4v" %
+        #     datetime.datetime.now().
+        #     strftime("%Y-%m-%d___%H-%M-%S"),
+        #     fourcc, self.fps,
+        #     self.video_shape,
+        #     isColor=True)
 
     # ------------------------------------------------------------------------
     # Public methods
@@ -179,7 +179,7 @@ class Visualiser(object):
                     self.image_data[y, x] = c
                     # if c>0:
                     # self.video_data[:] = 0
-                    self.video_data[y, x, 1] = np.uint8(c*230)
+                    # self.video_data[y, x, 1] = np.uint8(c*230)
                     # else:
                     #     self.video_data[y, x, :] = VIDEO_RED
                 except IndexError as e:
@@ -200,15 +200,15 @@ class Visualiser(object):
                     # Update displayed score count
                     self.score_text.set_text("%u" % self.score)
 
-                if self.score > 0:
-                    # print("pos score %d"%self.score)
-                    self.video_data[0:1, :, :] = [100, 255, 255]
-                elif self.score < 0:
-                    # print("neg score %d"%self.score)
-                    self.video_data[0:1, :, :] = [255, 100, 255]
-                else:
-                    # print("score 0")
-                    self.video_data[0:1, :, :] = [200, 200, 200]
+                # if self.score > 0:
+                #     # print("pos score %d"%self.score)
+                #     self.video_data[0:1, :, :] = [100, 255, 255]
+                # elif self.score < 0:
+                #     # print("neg score %d"%self.score)
+                #     self.video_data[0:1, :, :] = [255, 100, 255]
+                # else:
+                #     # print("score 0")
+                #     self.video_data[0:1, :, :] = [200, 200, 200]
 
         # Set image data
         try:
@@ -216,22 +216,22 @@ class Visualiser(object):
         except NameError:
             pass
 
-        try:
-            if message_received :
-            #     if not self.first_update:
-            #         buf = io.BytesIO()
-            #         plt.savefig(buf, format='png', dpi=100)
-            #         buf.seek(0)
-            #         self.video_data[:] = cv2.imdecode(
-            #             np.fromstring(buf.read(), np.uint8),
-            #             cv2.IMREAD_COLOR)
-            #     self.video_writer.write(self.video_data)
-
-                self.video_writer.write(
-                    cv2.resize(self.video_data, self.video_shape,
-                               interpolation=cv2.INTER_NEAREST))
-        except:
-            pass
+        # try:
+        #     if message_received :
+        #     #     if not self.first_update:
+        #     #         buf = io.BytesIO()
+        #     #         plt.savefig(buf, format='png', dpi=100)
+        #     #         buf.seek(0)
+        #     #         self.video_data[:] = cv2.imdecode(
+        #     #             np.fromstring(buf.read(), np.uint8),
+        #     #             cv2.IMREAD_COLOR)
+        #     #     self.video_writer.write(self.video_data)
+        #
+        #         self.video_writer.write(
+        #             cv2.resize(self.video_data, self.video_shape,
+        #                        interpolation=cv2.INTER_NEAREST))
+        # except:
+        #     pass
 
         # Return list of artists which we have updated
         # **YUCK** order of these dictates sort order
