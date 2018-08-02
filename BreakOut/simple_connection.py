@@ -108,21 +108,22 @@ def thread_visualiser(UDP_PORT):
     visual[id] = visualiser._return_image_data()
     result[id] = score
 
-def row_col_to_input_breakout(row, col, is_on_input, row_bits, row_start=0):
+def row_col_to_input_breakout(row, col, is_on_input, row_bits, event_bits=1, colour_bits=1, row_start=0):
     row_bits = np.uint32(row_bits)
     idx = np.uint32(0)
 
     if is_on_input:
-        idx = idx | 1
+        idx = 1
 
     row += row_start
-    idx = idx | (row << 1)  # colour bit
-    idx = idx | (col << (row_bits + 1))
+    idx = idx | (row << (colour_bits))  # colour bit
+    idx = idx | (col << (row_bits + colour_bits))
 
     # add two to allow for special event bits
     idx = idx + 2
 
     return idx
+
 
 
 def subsample_connection(x_res, y_res, subsamp_factor_x, subsamp_factor_y, weight,
@@ -132,7 +133,7 @@ def subsample_connection(x_res, y_res, subsamp_factor_x, subsamp_factor_y, weigh
     connection_list_off = []
 
     sx_res = int(x_res) // int(subsamp_factor_x)
-    row_bits = int(np.ceil(np.log2(y_res)))
+    row_bits = 8#int(np.ceil(np.log2(y_res)))
     for j in range(int(y_res)):
         for i in range(int(x_res)):
             si = i // subsamp_factor_x
@@ -162,6 +163,7 @@ UDP_PORT2 = UDP_PORT1 + 1
 
 # Setup pyNN simulation
 p.setup(timestep=1.0)
+p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
 
 # Create breakout population and activate live output for it
 breakout_pop = p.Population(1, spinn_breakout.Breakout, {}, label="breakout")
@@ -178,17 +180,17 @@ spike_input2 = p.Population(2, p.SpikeSourcePoisson, rate, label="input_connect"
 p.Projection(spike_input2, breakout_pop2, p.AllToAllConnector(weights=2))
 # key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["input_connect"])
 
-weight = 5
-x_factor = 4
-y_factor = 4
-[Connections_on, Connections_off]=subsample_connection(X_RESOLUTION, Y_RESOLUTION-1, x_factor, y_factor, weight, row_col_to_input_breakout)
+weight = 0.1
+x_factor = 1
+y_factor = 1
+[Connections_on, Connections_off]=subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight, row_col_to_input_breakout)
 receive_pop_size = (160/x_factor)*(128/y_factor)
-receive_pop_on = p.Population(receive_pop_size, p.IF_curr_exp, {}, label="receive_pop")
+receive_pop_on = p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop")
 receive_pop_on.record()#["spikes"])
-# receive_pop_off = p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop")
-# receive_pop_off.record()#["spikes"])
+receive_pop_off = p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop")
+receive_pop_off.record()#["spikes"])
 p.Projection(breakout_pop,receive_pop_on,p.FromListConnector(Connections_on))
-# p.Projection(breakout_pop,receive_pop_off,p.FromListConnector(Connections_off))
+p.Projection(breakout_pop,receive_pop_off,p.FromListConnector(Connections_off))
 
 # Create visualiser
 # visualiser = Visualiser(
@@ -224,18 +226,36 @@ running = False
 # spikes = []
 # for j in range(receive_pop_size):
 spikes_on = receive_pop_on.getSpikes()
+pylab.figure()
+ax = pylab.subplot(1, 2, 1)#4, 1)
 pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
 pylab.xlabel("Time (ms)")
 pylab.ylabel("neuron ID")
 pylab.axis([0, runtime, -1, receive_pop_size +1])
+
+# ax = pylab.subplot(1, 4, 2)
+# img = np.zeros((y_res//y_factor)*(x_res//x_factor))
+# img[[i[0] for i in spikes_on]] = 1.
+# plt.imshow(img.reshape((y_res//y_factor), (x_res//x_factor)), interpolation='none')
+
+# pylab.show()
+
+ax = pylab.subplot(1, 2, 2)#4, 3)
+spikes_off = receive_pop_off.getSpikes()
+pylab.plot([i[1] for i in spikes_off], [i[0] for i in spikes_off], "r.")
+pylab.xlabel("Time (ms)")
+pylab.ylabel("neuron ID")
+pylab.axis([0, runtime, -1, receive_pop_size +1])
+
+
+# ax = pylab.subplot(1, 4, 4)
+# img = np.zeros((y_res//y_factor)*(x_res//x_factor))
+# img[[i[0] for i in spikes_off]] = 1.
+# plt.imshow(img.reshape((y_res//y_factor), (x_res//x_factor)), interpolation='none')
+
+
 pylab.show()
 
-# spikes_off = receive_pop_off.getSpikes()
-# pylab.plot([i[1] for i in spikes_off], [i[0] for i in spikes_off], "r.")
-# pylab.xlabel("Time (ms)")
-# pylab.ylabel("neuron ID")
-# pylab.axis([0, 10000, -1, receive_pop_size +1])
-# pylab.show()
 
 # plt.figure(
 #     # raster plot of the presynaptic neuron spike times
