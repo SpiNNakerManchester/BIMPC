@@ -15,6 +15,9 @@ from pacman.model.resources.dtcm_resource import DTCMResource
 from pacman.model.resources.resource_container import ResourceContainer
 from pacman.model.resources.sdram_resource import SDRAMResource
 
+from spinn_front_end_common.interface.buffer_management \
+    import recording_utilities
+
 # SpinnFrontEndCommon imports
 # from spinn_front_end_common.abstract_models \
 #     .abstract_binary_uses_simulation_run import AbstractBinaryUsesSimulationRun
@@ -41,6 +44,8 @@ from spinn_front_end_common.utilities import globals_variables
 
 # sPyNNaker imports
 from spynnaker.pyNN.models.abstract_models import AbstractAcceptsIncomingSynapses
+from spynnaker.pyNN.models.common import AbstractNeuronRecordable
+from spynnaker.pyNN.models.common import NeuronRecorder
 from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
 from spynnaker.pyNN.utilities import constants
 from spynnaker.pyNN.models.common.simple_population_settable \
@@ -67,6 +72,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
                AbstractHasAssociatedBinary, 
                AbstractProvidesOutgoingPartitionConstraints,
                AbstractAcceptsIncomingSynapses,
+               AbstractNeuronRecordable,
                SimplePopulationSettable,
                # AbstractBinaryUsesSimulationRun
                ):
@@ -98,13 +104,15 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
     WIDTH_PIXELS = 160
     HEIGHT_PIXELS = 128
     COLOUR_BITS = 2
+    MAX_SIM_DURATION = 1000*60*60*24*7 #1 week
 
     # **HACK** for Projection to connect a synapse type is required
     synapse_type = BreakoutSynapseType()
 
     def __init__(self, n_neurons, width=WIDTH_PIXELS, height=HEIGHT_PIXELS,
                  colour_bits=COLOUR_BITS, constraints=None,
-                 label="Breakout", incoming_spike_buffer_size=None):
+                 label="Breakout", incoming_spike_buffer_size=None,
+                 simulation_duration_ms=MAX_SIM_DURATION):
         # **NOTE** n_neurons currently ignored - width and height will be
         # specified as additional parameters, forcing their product to be
         # duplicated in n_neurons seems pointless
@@ -117,6 +125,9 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
 
         self._n_neurons = (1 << (self._width_bits + self._height_bits +
                                  self._colour_bits))
+
+        #used to define size of recording region
+        self._recording_size = int((simulation_duration_ms/10000.) * 4)
 
         # Superclasses
         ApplicationVertex.__init__(
@@ -132,6 +143,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         if incoming_spike_buffer_size is None:
             self._incoming_spike_buffer_size = config.getint(
                                     "Simulation", "incoming_spike_buffer_size")
+
 
         # PopulationSettableChangeRequiresMapping.__init__(self)
         # self.width = width
@@ -205,6 +217,10 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
             region=BreakoutMachineVertex._BREAKOUT_REGIONS.BREAKOUT.value,
             size=self.BREAKOUT_REGION_BYTES, label='BreakoutParams')
         # vertex.reserve_provenance_data_region(spec)
+        #reserve recording region
+        spec.reserve_memory_region(
+            BreakoutMachineVertex._BREAKOUT_REGIONS.RECORDING.value,
+            recording_utilities.get_recording_header_size(1))
 
         # Write setup region
         spec.comment("\nWriting setup region:\n")
@@ -220,6 +236,14 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
             BreakoutMachineVertex._BREAKOUT_REGIONS.BREAKOUT.value)
         spec.write_value(routing_info.get_first_key_from_pre_vertex(
             vertex, constants.SPIKE_PARTITION_ID))
+
+        #Write recording region for score
+        spec.comment("\nWriting breakout recording region:\n")
+        spec.switch_write_focus(
+            BreakoutMachineVertex._BREAKOUT_REGIONS.RECORDING.value)
+        ip_tags = tags.get_ip_tags_for_vertex(self) or []
+        spec.write_array(recording_utilities.get_recording_header_array(
+            [self._recording_size], ip_tags=ip_tags))
 
         # End-of-Spec:
         spec.end_specification()
@@ -257,3 +281,50 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
     def set_value(self, key, value):
         SimplePopulationSettable.set_value(self, key, value)
         self._change_requires_neuron_parameters_reload = True
+
+    # ------------------------------------------------------------------------
+    # Recording overrides
+    # ------------------------------------------------------------------------
+    @overrides(
+        AbstractNeuronRecordable.clear_recording)
+    def clear_recording(
+            self, variable, buffer_manager, placements, graph_mapper):
+        self._clear_recording_region(
+            buffer_manager, placements, graph_mapper,
+            0)
+
+    @overrides(AbstractNeuronRecordable.get_recordable_variables)
+    def get_recordable_variables(self):
+        return 'score'
+
+    @overrides(AbstractNeuronRecordable.is_recording)
+    def is_recording(self, variable):
+        return True
+
+    @overrides(AbstractNeuronRecordable.set_recording)
+    def set_recording(self, variable, new_state=True, sampling_interval=None,
+                      indexes=None):
+        a=1
+
+    @overrides(AbstractNeuronRecordable.get_neuron_sampling_interval)
+    def get_neuron_sampling_interval(self, variable):
+        return 10000 #10 seconds hard coded in bkout.c
+
+    @overrides(AbstractNeuronRecordable.get_data)
+    def get_data(self, variable, n_machine_time_steps, placements,
+                 graph_mapper, buffer_manager, machine_time_step):
+        vertex = graph_mapper.get_machine_vertices(self).pop()
+        placement = placements.get_placement_of_vertex(vertex)
+
+        # Read the data recorded
+        data_values, _ = buffer_manager.get_data_for_vertex(placement,0)
+        data = data_values.read_all()
+
+        numpy_format=list()
+        numpy_format.append(("Score",numpy.int32))
+
+        output_data = numpy.array(data, dtype=numpy.uint8).view(numpy_format)
+
+        #return formatted_data
+        return output_data
+

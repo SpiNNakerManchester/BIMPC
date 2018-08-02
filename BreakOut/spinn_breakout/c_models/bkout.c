@@ -43,7 +43,7 @@ typedef enum
 {
   REGION_SYSTEM,
   REGION_BREAKOUT,
-  REGION_PROVENANCE,
+  REGION_RECORDING,
 } region_t;
 
 typedef enum
@@ -116,6 +116,8 @@ uint32_t left_key_count = 0;
 uint32_t right_key_count = 0;
 uint32_t move_count_r = 0;
 uint32_t move_count_l = 0;
+uint32_t score_change_count=0;
+int32_t current_score = 0;
 
 //ratio used in randomising initial x coordinate
 static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH);
@@ -128,12 +130,14 @@ static inline void add_score_up_event()
 {
   spin1_send_mc_packet(key | (SPECIAL_EVENT_SCORE_UP), 0, NO_PAYLOAD);
   log_debug("Score up");
+  current_score++;
 }
 
 static inline void add_score_down_event()
 {
   spin1_send_mc_packet(key | (SPECIAL_EVENT_SCORE_DOWN), 0, NO_PAYLOAD);
   log_debug("Score down");
+  current_score--;
 }
 
 static inline void add_event(int i, int j, colour_t col)
@@ -379,7 +383,7 @@ static bool initialize(uint32_t *timer_period)
   // Get the timing details and set up the simulation interface
   if (!simulation_initialise(data_specification_get_region(REGION_SYSTEM, address),
     APPLICATION_NAME_HASH, timer_period, &simulation_ticks,
-    &infinite_run, 1, data_specification_get_region(REGION_PROVENANCE, address)))
+    &infinite_run, 1, NULL))
   {
       return false;
   }
@@ -391,6 +395,17 @@ static bool initialize(uint32_t *timer_period)
   key = breakout_region[0];
   log_info("\tKey=%08x", key);
   log_info("\tTimer period=%d", *timer_period);
+
+    //get recording region
+   address_t recording_address = data_specification_get_region(
+                                       REGION_RECORDING,address);
+   // Setup recording
+   uint32_t recording_flags = 0;
+   if (!recording_initialize(recording_address, &recording_flags))
+   {
+       rt_error(RTE_SWERR);
+       return false;
+   }
 
   log_info("Initialise: completed successfully");
 
@@ -412,6 +427,10 @@ static bool initialize(uint32_t *timer_period)
     if (port == 7) spin1_exit (0);
 }*/
 
+void resume_callback() {
+    recording_reset();
+}
+
 void timer_callback(uint unused, uint dummy)
 {
   use(unused);
@@ -421,19 +440,20 @@ void timer_callback(uint unused, uint dummy)
 //  ticks++;
   _time++;
     //this makes it count twice, WTF!?
+  score_change_count++;
 
   if (!infinite_run && _time >= simulation_ticks)
   {
     //spin1_pause();
+    recording_finalise();
     // go into pause and resume state to avoid another tick
-    simulation_handle_pause_resume(NULL);
+    simulation_handle_pause_resume(resume_callback);
 //    spin1_callback_off(MC_PACKET_RECEIVED);
 
     log_info("move count Left %u", move_count_l);
     log_info("move count Right %u", move_count_r);
 //    log_info("key count Left %u", left_key_count);
 //    log_info("key count Right %u", right_key_count);
-
 
     log_info("Exiting on timer.");
     _time -= 1;
@@ -461,6 +481,11 @@ void timer_callback(uint unused, uint dummy)
       // Reset ticks in frame and update frame
       tick_in_frame = 0;
       update_frame();
+      // Update recorded score every 10s
+      if(score_change_count>=10000){
+        recording_record(0, &current_score, 4);
+        score_change_count=0;
+      }
     }
   }
 //  log_info("time %u", ticks);
