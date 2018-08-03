@@ -9,9 +9,14 @@ import pylab
 from spynnaker.pyNN.spynnaker_external_device_plugin_manager import \
     SpynnakerExternalDevicePluginManager as ex
 import spinn_breakout
+import sys, os
 import time
 import socket
 import numpy as np
+import math
+
+from peas.methods.neat import NEATPopulation, NEATGenotype
+from peas.networks.rnn import NeuralNetwork
 
 def get_scores(breakout_pop,simulator):
     b_vertex = breakout_pop._vertex
@@ -61,6 +66,133 @@ def subsample_connection(x_res, y_res, subsamp_factor_x, subsamp_factor_y, weigh
 
     return connection_list_on, connection_list_off
 
+def cm_to_fromlist(number_of_nodes, cm):
+    i2i = []
+    i2h = []
+    i2o = []
+    h2i = []
+    h2h = []
+    h2o = []
+    o2i = []
+    o2h = []
+    o2o = []
+    hidden_size = number_of_nodes - output_size - input_size
+    for i in range(number_of_nodes):
+        for j in range(number_of_nodes):
+            connect_weight = cm[j][i]
+            if connect_weight != 0 and not math.isnan(connect_weight):
+                if i < input_size:
+                    if j < input_size:
+                        i2i.append((j, i, connect_weight, delay))
+                    elif j < input_size + hidden_size:
+                        i2h.append((j, i, connect_weight, delay))
+                    elif j < input_size + hidden_size + output_size:
+                        i2o.append((j, i, connect_weight, delay))
+                    else:
+                        print "shit is broke"
+                elif i < input_size + hidden_size:
+                    if j < input_size:
+                        h2i.append((j, i, connect_weight, delay))
+                    elif j < input_size + hidden_size:
+                        h2h.append((j, i, connect_weight, delay))
+                    elif j < input_size + hidden_size + output_size:
+                        h2o.append((j, i, connect_weight, delay))
+                    else:
+                        print "shit is broke"
+                elif i < input_size + hidden_size + output_size:
+                    if j < input_size:
+                        o2i.append((j, i, connect_weight, delay))
+                    elif j < input_size + hidden_size:
+                        o2h.append((j, i, connect_weight, delay))
+                    elif j < input_size + hidden_size + output_size:
+                        o2o.append((j, i, connect_weight, delay))
+                    else:
+                        print "shit is broke"
+                else:
+                    print "shit is broke"
+
+    return i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o
+
+def test_pop(pop):
+    #test the whole population and return scores
+
+    #Acquire all connection matrices and node types
+    networks = []
+    for individual in pop:
+        networks.append(NeuralNetwork(individual))
+
+    number_of_nodes = len(networks[0].cm[0])
+    hidden_size = number_of_nodes - output_size - input_size
+
+    receive_pop_size = input_size
+    breakout_pops = []
+    receive_on_pops = []
+    hidden_node_pops = []
+    output_pops = []
+    weight = 0.1
+    [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
+                                                             row_col_to_input_breakout)
+
+    # Setup pyNN simulation
+    p.setup(timestep=1.0)
+    p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
+
+    #create the SpiNN nets
+    for i in range(len(networks)):
+
+        [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = cm_to_fromlist(number_of_nodes, networks[i].cm)
+
+        # Create breakout population
+        breakout_pops.append(p.Population(1, spinn_breakout.Breakout, {}, label="breakout"))
+
+        # Create input population and connect break out to it
+        receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop"))
+        p.Projection(breakout_pops[i], receive_on_pops[i], p.FromListConnector(Connections_on))
+
+        # Create output population and remaining population
+        output_pops.append(p.Population(output_size, p.IF_cond_exp, {}, label="output_pop"))
+        hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop"))
+
+        # Create the remaining nodes from the connection matrix and add them up
+        if len(i2i) != 0:
+            p.Projection(receive_on_pops[i], receive_on_pops[i], p.FromListConnector(i2i))
+        if len(i2h) != 0:
+            p.Projection(receive_on_pops[i], hidden_node_pops[i], p.FromListConnector(i2h))
+        if len(i2o) != 0:
+            p.Projection(receive_on_pops[i], output_pops[i], p.FromListConnector(i2o))
+        if len(h2i) != 0:
+            p.Projection(hidden_node_pops[i], receive_on_pops[i], p.FromListConnector(h2i))
+        if len(h2h) != 0:
+            p.Projection(hidden_node_pops[i], hidden_node_pops[i], p.FromListConnector(h2h))
+        if len(h2o) != 0:
+            p.Projection(hidden_node_pops[i], output_pops[i], p.FromListConnector(h2o))
+        if len(o2i) != 0:
+            p.Projection(output_pops[i], receive_on_pops[i], p.FromListConnector(o2i))
+        if len(o2h) != 0:
+            p.Projection(output_pops[i], hidden_node_pops[i], p.FromListConnector(o2h))
+        if len(o2o) != 0:
+            p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o))
+
+
+
+    print "reached here 1"
+
+    runtime = 31000
+
+    simulator = get_simulator()
+
+    p.run(runtime)
+
+    print "reached here 2"
+
+    scores = []
+    for i in range(len(networks)):
+        scores.append(get_scores(breakout_pop=breakout_pops[i], simulator=simulator))
+
+    # End simulation
+    p.end()
+
+    print scores
 
 X_BITS = 8
 Y_BITS = 8
@@ -73,75 +205,27 @@ Y_RESOLUTION = 128
 UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
 
-# Setup pyNN simulation
-p.setup(timestep=1.0)
-p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
+weight_max = 0.03
+delay = 5
 
-# Create breakout population and activate live output for it
-breakout_pop = p.Population(1, spinn_breakout.Breakout, {}, label="breakout")
-breakout_pop2 = p.Population(1, spinn_breakout.Breakout, {}, label="breakout")
-# ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
-ex.activate_live_output_for(breakout_pop2, host="0.0.0.1", port=UDP_PORT2)
-
-
-# Connect key spike injector to breakout population
-rate = {'rate': 2}
-spike_input = p.Population(2, p.SpikeSourcePoisson, rate, label="input_connect")
-p.Projection(spike_input, breakout_pop, p.AllToAllConnector(weights=2))
-spike_input2 = p.Population(2, p.SpikeSourcePoisson, rate, label="input_connect")
-p.Projection(spike_input2, breakout_pop2, p.AllToAllConnector(weights=2))
-
-weight = 0.1
+x_res = 160
+y_res = 128
 x_factor = 4
 y_factor = 4
-[Connections_on, Connections_off]=subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight, row_col_to_input_breakout)
-receive_pop_size = (160/x_factor)*(128/y_factor)
-receive_pop_on = p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop")
-receive_pop_off = p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop")
-p.Projection(breakout_pop,receive_pop_on,p.FromListConnector(Connections_on))
-p.Projection(breakout_pop,receive_pop_off,p.FromListConnector(Connections_off))
 
-x_res=160
-y_res=128
+input_size = (x_res/x_factor)*(y_res/y_factor)
+output_size = 2
 
-print "reached here 1"
+genotype = lambda: NEATGenotype(inputs=input_size,
+                                outputs=output_size,
+                                weight_range=(-50, 50),
+                                types=['excitatory', 'inhibitory'],
+                                feedforward=False)
 
-runtime = 31000
+# Create a population
+pop = NEATPopulation(genotype, popsize=20)
 
-simulator = get_simulator()
+# Run the evolution, tell it to use the task as an evaluator
+pop.epoch(generations=200, evaluator=test_pop, solution=None, SpiNNaker=True)
 
-p.run(runtime)
-
-print "reached here 2"
-
-# spikes = []
-# for j in range(receive_pop_size):
-# spikes_on = receive_pop_on.getSpikes()
-# pylab.figure()
-# ax = pylab.subplot(1, 2, 1)
-# pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-# pylab.xlabel("Time (ms)")
-# pylab.ylabel("neuron ID")
-# pylab.axis([0, runtime, -1, receive_pop_size +1])
-
-# pylab.show()
-
-# ax = pylab.subplot(1, 2, 2)
-# spikes_off = receive_pop_off.getSpikes()
-# pylab.plot([i[1] for i in spikes_off], [i[0] for i in spikes_off], "r.")
-# pylab.xlabel("Time (ms)")
-# pylab.ylabel("neuron ID")
-# pylab.axis([0, runtime, -1, receive_pop_size +1])
-
-
-# pylab.show()
-
-scores = get_scores(breakout_pop=breakout_pop, simulator=simulator)
-scores2 = get_scores(breakout_pop=breakout_pop2, simulator=simulator)
-
-# End simulation
-p.end()
-
-print "1", scores
-print "2", scores2
 
