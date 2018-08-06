@@ -79,7 +79,7 @@ def cm_to_fromlist(number_of_nodes, cm):
     hidden_size = number_of_nodes - output_size - input_size
     for i in range(number_of_nodes):
         for j in range(number_of_nodes):
-            connect_weight = (cm[j][i] - 50.) * (weight_max/100.)
+            connect_weight = (cm[j][i] + 50.) * (weight_max/100.)
             if connect_weight != 0 and not math.isnan(connect_weight):
                 if i < input_size:
                     if j < input_size:
@@ -130,7 +130,7 @@ def connect_genes_to_fromlist(number_of_nodes, indiviudal):
 
     for connections in indiviudal:
         c = indiviudal[connections]
-        connect_weight = (c[3] - 50.) * (weight_max / 100.)
+        connect_weight = (c[3] + 50.) * (weight_max / 100.)
         if c[4] == True:
             if c[1] < input_size:
                 if c[2] < input_size:
@@ -177,6 +177,7 @@ def test_pop(pop):
     breakout_pops = []
     receive_on_pops = []
     hidden_node_pops = []
+    hidden_count = 0
     output_pops = []
     weight = 0.1
     [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
@@ -201,30 +202,34 @@ def test_pop(pop):
 
         # Create input population and connect break out to it
         receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop {}".format(i)))
+        receive_on_pops[i].record()
         p.Projection(breakout_pops[i], receive_on_pops[i], p.FromListConnector(Connections_on))
 
         # Create output population and remaining population
         output_pops.append(p.Population(output_size, p.IF_cond_exp, {}, label="output_pop {}".format(i)))
+        output_pops[i].record()
+        p.Projection(output_pops[i], breakout_pops[i], p.AllToAllConnector())
         if hidden_size != 0:
             hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop {}".format(i)))
+            hidden_count += 1
 
         # Create the remaining nodes from the connection matrix and add them up
         if len(i2i) != 0:
             p.Projection(receive_on_pops[i], receive_on_pops[i], p.FromListConnector(i2i))
         if len(i2h) != 0:
-            p.Projection(receive_on_pops[i], hidden_node_pops[i], p.FromListConnector(i2h))
+            p.Projection(receive_on_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(i2h))
         if len(i2o) != 0:
             p.Projection(receive_on_pops[i], output_pops[i], p.FromListConnector(i2o))
         if len(h2i) != 0:
-            p.Projection(hidden_node_pops[i], receive_on_pops[i], p.FromListConnector(h2i))
+            p.Projection(hidden_node_pops[hidden_count-1], receive_on_pops[i], p.FromListConnector(h2i))
         if len(h2h) != 0:
-            p.Projection(hidden_node_pops[i], hidden_node_pops[i], p.FromListConnector(h2h))
+            p.Projection(hidden_node_pops[hidden_count-1], hidden_node_pops[hidden_count-1], p.FromListConnector(h2h))
         if len(h2o) != 0:
-            p.Projection(hidden_node_pops[i], output_pops[i], p.FromListConnector(h2o))
+            p.Projection(hidden_node_pops[hidden_count-1], output_pops[i], p.FromListConnector(h2o))
         if len(o2i) != 0:
             p.Projection(output_pops[i], receive_on_pops[i], p.FromListConnector(o2i))
         if len(o2h) != 0:
-            p.Projection(output_pops[i], hidden_node_pops[i], p.FromListConnector(o2h))
+            p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h))
         if len(o2o) != 0:
             p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o))
 
@@ -241,14 +246,36 @@ def test_pop(pop):
     print "reached here 2"
 
     scores = []
+    pylab.figure()
     for i in range(len(pop)):
         scores.append(get_scores(breakout_pop=breakout_pops[i], simulator=simulator))
         pop[i].stats = {'fitness': scores[i][len(scores[i])-1][0], 'steps': 0}
 
+        spikes_on = output_pops[i].getSpikes()
+        ax = pylab.subplot(1, len(pop), i+1)#4, 1)
+        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+        pylab.xlabel("Time (ms)")
+        pylab.ylabel("neuron ID")
+        pylab.axis([0, runtime, -1, output_size + 1])
+    pylab.show()
+    pylab.figure()
+    for i in range(len(pop)):
+        spikes_on = receive_on_pops[i].getSpikes()
+        ax = pylab.subplot(1, len(pop), i+1)#4, 1)
+        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+        pylab.xlabel("Time (ms)")
+        pylab.ylabel("neuron ID")
+        pylab.axis([0, runtime, -1, receive_pop_size + 1])
+    pylab.show()
+
     # End simulation
     p.end()
 
-    print scores
+    j = 0
+    for score in scores:
+        print j, score
+        j += 1
+
 
 X_BITS = 8
 Y_BITS = 8
@@ -261,13 +288,13 @@ Y_RESOLUTION = 128
 UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
 
-weight_max = 0.03
+weight_max = 0.1
 delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 16
-y_factor = 16
+x_factor = 8
+y_factor = 8
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
@@ -279,7 +306,7 @@ genotype = lambda: NEATGenotype(inputs=input_size,
                                 feedforward=False)
 
 # Create a population
-pop = NEATPopulation(genotype, popsize=20)
+pop = NEATPopulation(genotype, popsize=3)
 
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"
