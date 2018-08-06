@@ -79,33 +79,33 @@ def cm_to_fromlist(number_of_nodes, cm):
     hidden_size = number_of_nodes - output_size - input_size
     for i in range(number_of_nodes):
         for j in range(number_of_nodes):
-            connect_weight = cm[j][i]
+            connect_weight = (cm[j][i] - 50.) * (weight_max/100.)
             if connect_weight != 0 and not math.isnan(connect_weight):
                 if i < input_size:
                     if j < input_size:
                         i2i.append((j, i, connect_weight, delay))
-                    elif j < input_size + hidden_size:
-                        i2h.append((j, i, connect_weight, delay))
-                    elif j < input_size + hidden_size + output_size:
+                    elif j < input_size + output_size:
                         i2o.append((j, i, connect_weight, delay))
+                    elif j < input_size + hidden_size + output_size:
+                        i2h.append((j, i, connect_weight, delay))
                     else:
                         print "shit is broke"
-                elif i < input_size + hidden_size:
+                elif i < input_size + output_size:
                     if j < input_size:
-                        h2i.append((j, i, connect_weight, delay))
-                    elif j < input_size + hidden_size:
-                        h2h.append((j, i, connect_weight, delay))
+                        o2i.append((j, i, connect_weight, delay))
+                    elif j < input_size + output_size:
+                        o2o.append((j, i, connect_weight, delay))
                     elif j < input_size + hidden_size + output_size:
-                        h2o.append((j, i, connect_weight, delay))
+                        o2h.append((j, i, connect_weight, delay))
                     else:
                         print "shit is broke"
                 elif i < input_size + hidden_size + output_size:
                     if j < input_size:
-                        o2i.append((j, i, connect_weight, delay))
-                    elif j < input_size + hidden_size:
-                        o2h.append((j, i, connect_weight, delay))
+                        h2i.append((j, i, connect_weight, delay))
+                    elif j < input_size + output_size:
+                        h2o.append((j, i, connect_weight, delay))
                     elif j < input_size + hidden_size + output_size:
-                        o2o.append((j, i, connect_weight, delay))
+                        h2h.append((j, i, connect_weight, delay))
                     else:
                         print "shit is broke"
                 else:
@@ -113,16 +113,65 @@ def cm_to_fromlist(number_of_nodes, cm):
 
     return i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o
 
+def connect_genes_to_fromlist(number_of_nodes, indiviudal):
+    i2i = []
+    i2h = []
+    i2o = []
+    h2i = []
+    h2h = []
+    h2o = []
+    o2i = []
+    o2h = []
+    o2o = []
+
+    #individual: Tuples of (innov, from, to, weight, enabled)
+
+    hidden_size = number_of_nodes - output_size - input_size
+
+    for connections in indiviudal:
+        c = indiviudal[connections]
+        connect_weight = (c[3] - 50.) * (weight_max / 100.)
+        if c[4] == True:
+            if c[1] < input_size:
+                if c[2] < input_size:
+                    i2i.append((c[1], c[2], connect_weight, delay))
+                elif c[2] < input_size + output_size:
+                    i2o.append((c[1], c[2], connect_weight, delay))
+                elif c[2] < input_size + hidden_size + output_size:
+                    i2h.append((c[1], c[2], connect_weight, delay))
+                else:
+                    print "shit broke"
+            elif c[1] < input_size + output_size:
+                if c[2] < input_size:
+                    o2i.append((c[1], c[2], connect_weight, delay))
+                elif c[2] < input_size + output_size:
+                    o2o.append((c[1], c[2], connect_weight, delay))
+                elif c[2] < input_size + hidden_size + output_size:
+                    o2h.append((c[1], c[2], connect_weight, delay))
+                else:
+                    print "shit broke"
+            elif c[1] < input_size + hidden_size + output_size:
+                if c[2] < input_size:
+                    h2i.append((c[1], c[2], connect_weight, delay))
+                elif c[2] < input_size + output_size:
+                    h2o.append((c[1], c[2], connect_weight, delay))
+                elif c[2] < input_size + hidden_size + output_size:
+                    h2h.append((c[1], c[2], connect_weight, delay))
+                else:
+                    print "shit broke"
+            else:
+                print "shit broke"
+
+
+    return i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o
+
 def test_pop(pop):
     #test the whole population and return scores
 
     #Acquire all connection matrices and node types
-    networks = []
-    for individual in pop:
-        networks.append(NeuralNetwork(individual))
-
-    number_of_nodes = len(networks[0].cm[0])
-    hidden_size = number_of_nodes - output_size - input_size
+    # networks = []
+    # for individual in pop:
+    #     networks.append(NeuralNetwork(individual))
 
     receive_pop_size = input_size
     breakout_pops = []
@@ -137,21 +186,27 @@ def test_pop(pop):
     p.setup(timestep=1.0)
     p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
 
+    print len(pop)
     #create the SpiNN nets
-    for i in range(len(networks)):
+    for i in range(len(pop)):
 
-        [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = cm_to_fromlist(number_of_nodes, networks[i].cm)
+        number_of_nodes = len(pop[i].node_genes)
+        hidden_size = number_of_nodes - output_size - input_size
+
+        [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = connect_genes_to_fromlist(number_of_nodes, pop[i].conn_genes)
+        # [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = cm_to_fromlist(number_of_nodes, networks[i].cm)
 
         # Create breakout population
-        breakout_pops.append(p.Population(1, spinn_breakout.Breakout, {}, label="breakout"))
+        breakout_pops.append(p.Population(1, spinn_breakout.Breakout, {}, label="breakout {}".format(i)))
 
         # Create input population and connect break out to it
-        receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop"))
+        receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop {}".format(i)))
         p.Projection(breakout_pops[i], receive_on_pops[i], p.FromListConnector(Connections_on))
 
         # Create output population and remaining population
-        output_pops.append(p.Population(output_size, p.IF_cond_exp, {}, label="output_pop"))
-        hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop"))
+        output_pops.append(p.Population(output_size, p.IF_cond_exp, {}, label="output_pop {}".format(i)))
+        if hidden_size != 0:
+            hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop {}".format(i)))
 
         # Create the remaining nodes from the connection matrix and add them up
         if len(i2i) != 0:
@@ -186,8 +241,9 @@ def test_pop(pop):
     print "reached here 2"
 
     scores = []
-    for i in range(len(networks)):
+    for i in range(len(pop)):
         scores.append(get_scores(breakout_pop=breakout_pops[i], simulator=simulator))
+        pop[i].stats = {'fitness': scores[i][len(scores[i])-1][0], 'steps': 0}
 
     # End simulation
     p.end()
@@ -206,12 +262,12 @@ UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
 
 weight_max = 0.03
-delay = 5
+delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 4
-y_factor = 4
+x_factor = 16
+y_factor = 16
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
@@ -226,6 +282,7 @@ genotype = lambda: NEATGenotype(inputs=input_size,
 pop = NEATPopulation(genotype, popsize=20)
 
 # Run the evolution, tell it to use the task as an evaluator
+print "beginning epoch"
 pop.epoch(generations=200, evaluator=test_pop, solution=None, SpiNNaker=True)
 
 
