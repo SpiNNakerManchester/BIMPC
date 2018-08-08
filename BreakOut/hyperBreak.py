@@ -84,33 +84,33 @@ def cm_to_fromlist(number_of_nodes, cm):
     hidden_size = number_of_nodes - output_size - input_size
     for i in range(number_of_nodes):
         for j in range(number_of_nodes):
-            connect_weight = (cm[j][i] + 50.) * (weight_max/100.)
+            connect_weight = cm[j][i] * (weight_max / 50.)
             if connect_weight != 0 and not math.isnan(connect_weight):
                 if i < input_size:
                     if j < input_size:
-                        i2i.append((j, i, connect_weight, delay))
+                        i2i.append((i, j, connect_weight, delay))
                     elif j < input_size + output_size:
-                        i2o.append((j, i-input_size, connect_weight, delay))
+                        i2o.append((i, j-input_size, connect_weight, delay))
                     elif j < input_size + hidden_size + output_size:
-                        i2h.append((j, i-input_size-output_size, connect_weight, delay))
+                        i2h.append((i, j-input_size-output_size, connect_weight, delay))
                     else:
                         print "shit is broke"
                 elif i < input_size + output_size:
                     if j < input_size:
-                        o2i.append((j-input_size, i, connect_weight, delay))
+                        o2i.append((i-input_size, j, connect_weight, delay))
                     elif j < input_size + output_size:
-                        o2o.append((j-input_size, i-input_size, connect_weight, delay))
+                        o2o.append((i-input_size, j-input_size, connect_weight, delay))
                     elif j < input_size + hidden_size + output_size:
-                        o2h.append((j-input_size, i-input_size-output_size, connect_weight, delay))
+                        o2h.append((i-input_size, j-input_size-output_size, connect_weight, delay))
                     else:
                         print "shit is broke"
                 elif i < input_size + hidden_size + output_size:
                     if j < input_size:
-                        h2i.append((j-input_size-output_size, i, connect_weight, delay))
+                        h2i.append((i-input_size-output_size, j, connect_weight, delay))
                     elif j < input_size + output_size:
-                        h2o.append((j-input_size-output_size, i-input_size, connect_weight, delay))
+                        h2o.append((i-input_size-output_size, j-input_size, connect_weight, delay))
                     elif j < input_size + hidden_size + output_size:
-                        h2h.append((j-input_size-output_size, i-input_size-output_size, connect_weight, delay))
+                        h2h.append((i-input_size-output_size, j-input_size-output_size, connect_weight, delay))
                     else:
                         print "shit is broke"
                 else:
@@ -135,7 +135,7 @@ def connect_genes_to_fromlist(number_of_nodes, indiviudal):
 
     for connections in indiviudal:
         c = indiviudal[connections]
-        connect_weight = (c[3] + 50.) * (weight_max / 100.)
+        connect_weight = c[3] * (weight_max / 50.)
         if c[4] == True:
             if c[1] < input_size:
                 if c[2] < input_size:
@@ -170,7 +170,7 @@ def connect_genes_to_fromlist(number_of_nodes, indiviudal):
 
     return i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o
 
-def test_pop(pop, dev):
+def test_pop(pop):
     #test the whole population and return scores
 
     #Acquire all connection matrices and node types
@@ -198,7 +198,7 @@ def test_pop(pop, dev):
 
         phenotype = developer.convert(pop[i])
 
-        number_of_nodes = len(phenotype.node_genes)
+        number_of_nodes = len(phenotype.node_types)
         hidden_size = number_of_nodes - output_size - input_size
 
         # [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = connect_genes_to_fromlist(number_of_nodes, phenotype.conn_genes)
@@ -215,12 +215,12 @@ def test_pop(pop, dev):
         output_pops.append(p.Population(output_size, p.IF_cond_exp, {}, label="output_pop {}".format(i)))
         p.Projection(output_pops[i], breakout_pops[i], p.AllToAllConnector())
 
-        # receive_on_pops[i].record()
-        # output_pops[i].record()
-
         if hidden_size != 0:
             hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop {}".format(i)))
             hidden_count += 1
+            hidden_node_pops[hidden_count-1].record()
+        receive_on_pops[i].record()
+        output_pops[i].record()
 
         # Create the remaining nodes from the connection matrix and add them up
         if len(i2i) != 0:
@@ -259,24 +259,33 @@ def test_pop(pop, dev):
         scores.append(get_scores(breakout_pop=breakout_pops[i], simulator=simulator))
         pop[i].stats = {'fitness': scores[i][len(scores[i])-1][0], 'steps': 0}
 
-    #     if i == 0:
-    #         pylab.figure()
-    #     spikes_on = output_pops[i].getSpikes()
-    #     ax = pylab.subplot(1, len(pop), i+1)#4, 1)
-    #     pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-    #     pylab.xlabel("Time (ms)")
-    #     pylab.ylabel("neuron ID")
-    #     pylab.axis([0, runtime, -1, output_size + 1])
-    # pylab.show()
-    # pylab.figure()
-    # for i in range(len(pop)):
-    #     spikes_on = receive_on_pops[i].getSpikes()
-    #     ax = pylab.subplot(1, len(pop), i+1)#4, 1)
-    #     pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-    #     pylab.xlabel("Time (ms)")
-    #     pylab.ylabel("neuron ID")
-    #     pylab.axis([0, runtime, -1, receive_pop_size + 1])
-    # pylab.show()
+        if i == 0:
+            pylab.figure()
+        spikes_on = output_pops[i].getSpikes()
+        ax = pylab.subplot(1, len(pop), i+1)#4, 1)
+        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+        pylab.xlabel("Time (ms)")
+        pylab.ylabel("neuron ID")
+        pylab.axis([0, runtime, -1, output_size + 1])
+    pylab.show()
+    pylab.figure()
+    for i in range(hidden_count):
+        spikes_on = hidden_node_pops[i].getSpikes()
+        ax = pylab.subplot(1, len(pop), i+1)#4, 1)
+        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+        pylab.xlabel("Time (ms)")
+        pylab.ylabel("neuron ID")
+        pylab.axis([0, runtime, -1, receive_pop_size + 1])
+    pylab.show()
+    pylab.figure()
+    for i in range(len(pop)):
+        spikes_on = receive_on_pops[i].getSpikes()
+        ax = pylab.subplot(1, len(pop), i+1)#4, 1)
+        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+        pylab.xlabel("Time (ms)")
+        pylab.ylabel("neuron ID")
+        pylab.axis([0, runtime, -1, receive_pop_size + 1])
+    pylab.show()
 
     j = 0
     for score in scores:
@@ -299,32 +308,40 @@ Y_RESOLUTION = 128
 UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
 
-weight_max = 0.1
+weight_max = 0.5
 delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 16
-y_factor = 16
+x_factor = 1
+y_factor = 1
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
 
 # Configure substrate
 substrate = Substrate()
-substrate.add_nodes([(0,0)], 'bias')
-substrate.add_nodes([(r, theta) for r in np.linspace(0,1,3)
-                          for theta in np.linspace(-1, 1, 5)], 'input')
-substrate.add_nodes([(r, theta) for r in np.linspace(0,1,3)
-                          for theta in np.linspace(-1, 1, 3)], 'layer')
-substrate.add_connections('input', 'layer',-1)
-substrate.add_connections('bias', 'layer', -2)
-substrate.add_connections('layer', 'layer',-3)
+substrate.add_nodes([(-1, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+                          for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'input')
+substrate.add_nodes([(1, r, theta) for r in np.linspace(0,0,1)
+                          for theta in np.linspace(-1, 1, 2)], 'output')
+substrate.add_nodes([(0, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+                          for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden')
+
+# substrate.add_connections('input', 'input',-1)
+substrate.add_connections('input', 'hidden', -1)
+# substrate.add_connections('input', 'output',-1)
+# substrate.add_connections('hidden', 'input',-2)
+# substrate.add_connections('hidden', 'hidden', -2)
+substrate.add_connections('hidden', 'output',-2)
+# substrate.add_connections('output', 'input',-3)
+# substrate.add_connections('output', 'hidden', -3)
+# substrate.add_connections('output', 'output',-3)
 
 geno_kwds = dict(feedforward=True,
-                 inputs=4,
-                 outputs=3,
-                 weight_range=(-3.0, 3.0),
+                 inputs=6,
+                 outputs=2,
+                 weight_range=(-50.0, 50.0),
                  prob_add_conn=0.1,
                  prob_add_node=0.03,
                  bias_as_node=False,
@@ -332,12 +349,13 @@ geno_kwds = dict(feedforward=True,
 
 geno = lambda: NEATGenotype(**geno_kwds)
 
-pop = NEATPopulation(geno, popsize=100, target_species=8)
+pop = NEATPopulation(geno, popsize=5, target_species=8)
 
 developer = HyperNEATDeveloper(substrate=substrate,
                                add_deltas=False,
                                sandwich=False,
-                               node_type=['excitatory', 'inhibitory'])
+                               feedforward=False,
+                               node_type=(('excitatory'), ('inhibitory')))
 
 
 # genotype = lambda: NEATGenotype(inputs=input_size,
@@ -354,8 +372,9 @@ developer = HyperNEATDeveloper(substrate=substrate,
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"
 results = pop.epoch(generations=200,
-                    evaluator=test_pop(pop, developer),
+                    evaluator=test_pop,
                     solution=None,
+                    SpiNNaker=True
                     )
 
 
