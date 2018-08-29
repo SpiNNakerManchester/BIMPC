@@ -114,57 +114,99 @@ def cm_to_fromlist(number_of_nodes, cm):
 
     return i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o
 
-def connect_genes_to_fromlist(number_of_nodes, indiviudal):
-    i2i = []
-    i2h = []
-    i2o = []
-    h2i = []
-    h2h = []
-    h2o = []
-    o2i = []
-    o2h = []
-    o2o = []
+def connect_genes_to_fromlist(number_of_nodes, connections, nodes):
+    i2i_ex = []
+    i2i_in = []
+    i2h_ex = []
+    i2h_in = []
+    i2o_ex = []
+    i2o_in = []
+    h2i_ex = []
+    h2i_in = []
+    h2h_ex = []
+    h2h_in = []
+    h2o_ex = []
+    h2o_in = []
+    o2i_ex = []
+    o2i_in = []
+    o2h_ex = []
+    o2h_in = []
+    o2o_ex = []
+    o2o_in = []
+
+    ex_or_in = []
+    for node in nodes:
+        ex_or_in.append(nodes[node][1])
 
     #individual: Tuples of (innov, from, to, weight, enabled)
 
     hidden_size = number_of_nodes - output_size - input_size
 
-    for connections in indiviudal:
-        c = indiviudal[connections]
+    i = 0
+    for conn in connections:
+        c = connections[conn]
         connect_weight = c[3] * (weight_max / 50.)
         if c[4] == True:
             if c[1] < input_size:
                 if c[2] < input_size:
-                    i2i.append((c[1], c[2], connect_weight, delay))
+                    if ex_or_in[i] == 'excitatory':
+                        i2i_ex.append((c[1], c[2], connect_weight, delay))
+                    else:
+                        i2i_in.append((c[1], c[2], connect_weight, delay))
                 elif c[2] < input_size + output_size:
-                    i2o.append((c[1], c[2]-input_size, connect_weight, delay))
+                    if ex_or_in[i] == 'excitatory':
+                        i2o_ex.append((c[1], c[2]-input_size, connect_weight, delay))
+                    else:
+                        i2o_in.append((c[1], c[2]-input_size, connect_weight, delay))
                 elif c[2] < input_size + hidden_size + output_size:
-                    i2h.append((c[1], c[2]-input_size-output_size, connect_weight, delay))
+                    if ex_or_in[i] == 'excitatory':
+                        i2h_ex.append((c[1], c[2]-input_size-output_size, connect_weight, delay))
+                    else:
+                        i2h_in.append((c[1], c[2]-input_size-output_size, connect_weight, delay))
                 else:
                     print "shit broke"
             elif c[1] < input_size + output_size:
                 if c[2] < input_size:
-                    o2i.append((c[1]-input_size, c[2], connect_weight, delay))
+                    if ex_or_in[i] == 'excitatory':
+                        o2i_ex.append((c[1]-input_size, c[2], connect_weight, delay))
+                    else:
+                        o2i_in.append((c[1]-input_size, c[2], connect_weight, delay))
                 elif c[2] < input_size + output_size:
-                    o2o.append((c[1]-input_size, c[2]-input_size, connect_weight, delay))
+                    if ex_or_in[i] == 'excitatory':
+                        o2o_ex.append((c[1]-input_size, c[2]-input_size, connect_weight, delay))
+                    else:
+                        o2o_in.append((c[1]-input_size, c[2]-input_size, connect_weight, delay))
                 elif c[2] < input_size + hidden_size + output_size:
-                    o2h.append((c[1]-input_size, c[2]-input_size-output_size, connect_weight, delay))
+                    if ex_or_in[i] == 'excitatory':
+                        o2h_ex.append((c[1]-input_size, c[2]-input_size-output_size, connect_weight, delay))
+                    else:
+                        o2h_in.append((c[1]-input_size, c[2]-input_size-output_size, connect_weight, delay))
                 else:
                     print "shit broke"
             elif c[1] < input_size + hidden_size + output_size:
                 if c[2] < input_size:
-                    h2i.append((c[1]-input_size-output_size, c[2], connect_weight, delay))
+                    if ex_or_in[i] == 'excitatory':
+                        h2i_ex.append((c[1]-input_size-output_size, c[2], connect_weight, delay))
+                    else:
+                        h2i_in.append((c[1]-input_size-output_size, c[2], connect_weight, delay))
                 elif c[2] < input_size + output_size:
-                    h2o.append((c[1]-input_size-output_size, c[2]-input_size, connect_weight, delay))
+                    if ex_or_in[i] == 'excitatory':
+                        h2o_ex.append((c[1]-input_size-output_size, c[2]-input_size, connect_weight, delay))
+                    else:
+                        h2o_in.append((c[1]-input_size-output_size, c[2]-input_size, connect_weight, delay))
                 elif c[2] < input_size + hidden_size + output_size:
-                    h2h.append((c[1]-input_size-output_size, c[2]-input_size-output_size, connect_weight, delay))
+                    if ex_or_in[i] == 'excitatory':
+                        h2h_ex.append((c[1]-input_size-output_size, c[2]-input_size-output_size, connect_weight, delay))
+                    else:
+                        h2h_in.append((c[1]-input_size-output_size, c[2]-input_size-output_size, connect_weight, delay))
                 else:
                     print "shit broke"
             else:
                 print "shit broke"
+        i += 1
 
 
-    return i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o
+    return i2i_ex, i2h_ex, i2o_ex, h2i_ex, h2h_ex, h2o_ex, o2i_ex, o2h_ex, o2o_ex, i2i_in, i2h_in, i2o_in, h2i_in, h2h_in, h2o_in, o2i_in, o2h_in, o2o_in
 
 def test_pop(pop):
     #test the whole population and return scores
@@ -195,7 +237,7 @@ def test_pop(pop):
         number_of_nodes = len(pop[i].node_genes)
         hidden_size = number_of_nodes - output_size - input_size
 
-        [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = connect_genes_to_fromlist(number_of_nodes, pop[i].conn_genes)
+        [i2i_ex, i2h_ex, i2o_ex, h2i_ex, h2h_ex, h2o_ex, o2i_ex, o2h_ex, o2o_ex, i2i_in, i2h_in, i2o_in, h2i_in, h2h_in, h2o_in, o2i_in, o2h_in, o2o_in] = connect_genes_to_fromlist(number_of_nodes, pop[i].conn_genes, pop[i].node_genes)
         # [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = cm_to_fromlist(number_of_nodes, networks[i].cm)
 
         # Create breakout population
@@ -217,24 +259,42 @@ def test_pop(pop):
         # output_pops[i].record()
 
         # Create the remaining nodes from the connection matrix and add them up
-        if len(i2i) != 0:
-            p.Projection(receive_on_pops[i], receive_on_pops[i], p.FromListConnector(i2i))
-        if len(i2h) != 0:
-            p.Projection(receive_on_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(i2h))
-        if len(i2o) != 0:
-            p.Projection(receive_on_pops[i], output_pops[i], p.FromListConnector(i2o))
-        if len(h2i) != 0:
-            p.Projection(hidden_node_pops[hidden_count-1], receive_on_pops[i], p.FromListConnector(h2i))
-        if len(h2h) != 0:
-            p.Projection(hidden_node_pops[hidden_count-1], hidden_node_pops[hidden_count-1], p.FromListConnector(h2h))
-        if len(h2o) != 0:
-            p.Projection(hidden_node_pops[hidden_count-1], output_pops[i], p.FromListConnector(h2o))
-        if len(o2i) != 0:
-            p.Projection(output_pops[i], receive_on_pops[i], p.FromListConnector(o2i))
-        if len(o2h) != 0:
-            p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h))
-        if len(o2o) != 0:
-            p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o))
+        if len(i2i_ex) != 0:
+            p.Projection(receive_on_pops[i], receive_on_pops[i], p.FromListConnector(i2i_ex), target='excitatory')
+        if len(i2h_ex) != 0:
+            p.Projection(receive_on_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(i2h_ex), target='excitatory')
+        if len(i2o_ex) != 0:
+            p.Projection(receive_on_pops[i], output_pops[i], p.FromListConnector(i2o_ex), target='excitatory')
+        if len(h2i_ex) != 0:
+            p.Projection(hidden_node_pops[hidden_count-1], receive_on_pops[i], p.FromListConnector(h2i_ex), target='excitatory')
+        if len(h2h_ex) != 0:
+            p.Projection(hidden_node_pops[hidden_count-1], hidden_node_pops[hidden_count-1], p.FromListConnector(h2h_ex), target='excitatory')
+        if len(h2o_ex) != 0:
+            p.Projection(hidden_node_pops[hidden_count-1], output_pops[i], p.FromListConnector(h2o_ex), target='excitatory')
+        if len(o2i_ex) != 0:
+            p.Projection(output_pops[i], receive_on_pops[i], p.FromListConnector(o2i_ex), target='excitatory')
+        if len(o2h_ex) != 0:
+            p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h_ex), target='excitatory')
+        if len(o2o_ex) != 0:
+            p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o_ex), target='excitatory')
+        if len(i2i_in) != 0:
+            p.Projection(receive_on_pops[i], receive_on_pops[i], p.FromListConnector(i2i_in), target='inhibitory')
+        if len(i2h_in) != 0:
+            p.Projection(receive_on_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(i2h_in), target='inhibitory')
+        if len(i2o_in) != 0:
+            p.Projection(receive_on_pops[i], output_pops[i], p.FromListConnector(i2o_in), target='inhibitory')
+        if len(h2i_in) != 0:
+            p.Projection(hidden_node_pops[hidden_count-1], receive_on_pops[i], p.FromListConnector(h2i_in), target='inhibitory')
+        if len(h2h_in) != 0:
+            p.Projection(hidden_node_pops[hidden_count-1], hidden_node_pops[hidden_count-1], p.FromListConnector(h2h_in), target='inhibitory')
+        if len(h2o_in) != 0:
+            p.Projection(hidden_node_pops[hidden_count-1], output_pops[i], p.FromListConnector(h2o_in), target='inhibitory')
+        if len(o2i_in) != 0:
+            p.Projection(output_pops[i], receive_on_pops[i], p.FromListConnector(o2i_in), target='inhibitory')
+        if len(o2h_in) != 0:
+            p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h_in), target='inhibitory')
+        if len(o2o_in) != 0:
+            p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o_in), target='inhibitory')
 
 
 
@@ -334,22 +394,22 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 32
-y_factor = 32
+x_factor = 24
+y_factor = 24
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
 
 genotype = lambda: NEATGenotype(inputs=input_size,
                                 outputs=output_size,
-                                prob_add_node=0.7,
-                                prob_add_conn=0.4,
+                                prob_add_node=0.1,
+                                # prob_add_conn=0.4,
                                 weight_range=(-50, 50),
                                 types=['excitatory', 'inhibitory'],
                                 feedforward=False)
 
 # Create a population
-pop = NEATPopulation(genotype, popsize=150)
+pop = NEATPopulation(genotype, popsize=100)
 
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"
