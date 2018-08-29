@@ -14,6 +14,7 @@ import sys, os
 import time
 import socket
 import numpy as np
+import csv
 import math
 
 from peas.methods.neat import NEATPopulation, NEATGenotype
@@ -195,7 +196,7 @@ def test_pop(pop):
     print len(pop)
     #create the SpiNN nets
     for i in range(len(pop)):
-
+        print "converting geno->pheno->spino ", i
         phenotype = developer.convert(pop[i])
 
         number_of_nodes = len(phenotype.node_types)
@@ -218,9 +219,9 @@ def test_pop(pop):
         if hidden_size != 0:
             hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop {}".format(i)))
             hidden_count += 1
-            hidden_node_pops[hidden_count-1].record()
-        receive_on_pops[i].record()
-        output_pops[i].record()
+        #     hidden_node_pops[hidden_count-1].record()
+        # receive_on_pops[i].record()
+        # output_pops[i].record()
 
         # Create the remaining nodes from the connection matrix and add them up
         if len(i2i) != 0:
@@ -257,43 +258,73 @@ def test_pop(pop):
     scores = []
     for i in range(len(pop)):
         scores.append(get_scores(breakout_pop=breakout_pops[i], simulator=simulator))
-        pop[i].stats = {'fitness': scores[i][len(scores[i])-1][0], 'steps': 0}
+        pop[i].stats = {'fitness': scores[i][len(scores[i])-1][0]}#, 'steps': 0}
 
-        if i == 0:
-            pylab.figure()
-        spikes_on = output_pops[i].getSpikes()
-        ax = pylab.subplot(1, len(pop), i+1)#4, 1)
-        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-        pylab.xlabel("Time (ms)")
-        pylab.ylabel("neuron ID")
-        pylab.axis([0, runtime, -1, output_size + 1])
-    pylab.show()
-    pylab.figure()
-    for i in range(hidden_count):
-        spikes_on = hidden_node_pops[i].getSpikes()
-        ax = pylab.subplot(1, len(pop), i+1)#4, 1)
-        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-        pylab.xlabel("Time (ms)")
-        pylab.ylabel("neuron ID")
-        pylab.axis([0, runtime, -1, receive_pop_size + 1])
-    pylab.show()
-    pylab.figure()
-    for i in range(len(pop)):
-        spikes_on = receive_on_pops[i].getSpikes()
-        ax = pylab.subplot(1, len(pop), i+1)#4, 1)
-        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-        pylab.xlabel("Time (ms)")
-        pylab.ylabel("neuron ID")
-        pylab.axis([0, runtime, -1, receive_pop_size + 1])
-    pylab.show()
+    #     if i == 0:
+    #         pylab.figure()
+    #     spikes_on = output_pops[i].getSpikes()
+    #     ax = pylab.subplot(1, len(pop), i+1)#4, 1)
+    #     pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+    #     pylab.xlabel("Time (ms)")
+    #     pylab.ylabel("neuron ID")
+    #     pylab.axis([0, runtime, -1, output_size + 1])
+    # pylab.show()
+    # pylab.figure()
+    # for i in range(hidden_count):
+    #     spikes_on = hidden_node_pops[i].getSpikes()
+    #     ax = pylab.subplot(1, len(pop), i+1)#4, 1)
+    #     pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+    #     pylab.xlabel("Time (ms)")
+    #     pylab.ylabel("neuron ID")
+    #     pylab.axis([0, runtime, -1, receive_pop_size + 1])
+    # pylab.show()
+    # pylab.figure()
+    # for i in range(len(pop)):
+    #     spikes_on = receive_on_pops[i].getSpikes()
+    #     ax = pylab.subplot(1, len(pop), i+1)#4, 1)
+    #     pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+    #     pylab.xlabel("Time (ms)")
+    #     pylab.ylabel("neuron ID")
+    #     pylab.axis([0, runtime, -1, receive_pop_size + 1])
+    # pylab.show()
 
     j = 0
     for score in scores:
         print j, score
         j += 1
 
+    print "factors: ", x_factor
+
+    gen_stats(pop)
+    save_champion()
     # End simulation
     p.end()
+
+def gen_stats(list_pop):
+    # pop._gather_stats(list_pop)
+    for stat in pop.stats:
+        print "{}: {}".format(stat, pop.stats[stat])
+
+def save_champion():
+    iteration = len(pop.champions) - 1
+    if iteration >= 0:
+        with open('hyper champion {} - {}.csv'.format(iteration, x_factor), 'w') as file:
+            writer = csv.writer(file, delimiter=',', lineterminator='\n')
+            for i in pop.champions[iteration].conn_genes:
+                writer.writerow(pop.champions[iteration].conn_genes[i])
+            for i in pop.champions[iteration].node_genes:
+                writer.writerow(i)
+            for i in pop.champions[iteration].stats:
+                writer.writerow(["fitness", pop.champions[iteration].stats[i]])
+            # writer.writerow("\n")
+        with open('hyper champions {}.csv'.format(x_factor), 'a') as file:
+            writer = csv.writer(file, delimiter=',', lineterminator='\n')
+            for i in pop.champions[iteration].conn_genes:
+                writer.writerow(pop.champions[iteration].conn_genes[i])
+            for i in pop.champions[iteration].node_genes:
+                writer.writerow(i)
+            for i in pop.champions[iteration].stats:
+                writer.writerow(["fitness", pop.champions[iteration].stats[i]])
 
 
 
@@ -308,26 +339,30 @@ Y_RESOLUTION = 128
 UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
 
-weight_max = 0.5
+weight_max = 1
 delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 1
-y_factor = 1
+x_factor = 16
+y_factor = 16
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
 
 # Configure substrate
 substrate = Substrate()
-substrate.add_nodes([(-1, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+print "adding input"
+substrate.add_nodes([(r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
                           for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'input')
-substrate.add_nodes([(1, r, theta) for r in np.linspace(0,0,1)
+print "adding output"
+substrate.add_nodes([(r, theta) for r in np.linspace(0,0,1)
                           for theta in np.linspace(-1, 1, 2)], 'output')
-substrate.add_nodes([(0, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+print "adding hidden"
+substrate.add_nodes([(r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
                           for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden')
 
+print "adding connections"
 # substrate.add_connections('input', 'input',-1)
 substrate.add_connections('input', 'hidden', -1)
 # substrate.add_connections('input', 'output',-1)
@@ -338,8 +373,9 @@ substrate.add_connections('hidden', 'output',-2)
 # substrate.add_connections('output', 'hidden', -3)
 # substrate.add_connections('output', 'output',-3)
 
+print "setting up classes etc"
 geno_kwds = dict(feedforward=True,
-                 inputs=6,
+                 inputs=4,
                  outputs=2,
                  weight_range=(-50.0, 50.0),
                  prob_add_conn=0.1,
@@ -349,7 +385,7 @@ geno_kwds = dict(feedforward=True,
 
 geno = lambda: NEATGenotype(**geno_kwds)
 
-pop = NEATPopulation(geno, popsize=5, target_species=8)
+pop = NEATPopulation(geno, popsize=100, target_species=8)
 
 developer = HyperNEATDeveloper(substrate=substrate,
                                add_deltas=False,
@@ -371,7 +407,7 @@ developer = HyperNEATDeveloper(substrate=substrate,
 
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"
-results = pop.epoch(generations=200,
+results = pop.epoch(generations=2000,
                     evaluator=test_pop,
                     solution=None,
                     SpiNNaker=True
