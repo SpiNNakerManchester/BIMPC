@@ -20,7 +20,7 @@ import csv
 from peas.methods.neat import NEATPopulation, NEATGenotype
 from peas.networks.rnn import NeuralNetwork
 
-def read_agent(file):
+def read_agent():
     agent_connections = []
     agent_nodes = []
     agent_genes = []
@@ -193,7 +193,7 @@ def connect_genes_to_fromlist(number_of_nodes, indiviudal):
 
     return i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o
 
-def test_agent(file):
+def test_agent(pop):
     #test the whole population and return scores
 
     # Create visualiser
@@ -207,7 +207,33 @@ def test_agent(file):
     # for individual in pop:
     #     networks.append(NeuralNetwork(individual))
 
-    agent = read_agent(file)
+    agent = read_agent()
+
+    if hyper == True:
+        i = 1
+        while i >= 0:
+            i -= 1
+            for key in pop.conn_genes:
+                del pop.conn_genes[key]
+                i += 1
+                break
+        i = 1
+        while i >= 0:
+            i -= 1
+            for key in pop.node_genes:
+                del pop.node_genes[key]
+                i += 1
+                break
+        for i in pop.node_genes:
+            del i
+            del pop.node_genes[0]
+        for i in range(50):
+            # conn_gene = [innov, fr, to, np.random.normal(0, self.stdev_mutate_weight), True]
+            conn_gene = [7, 7, 7, 7, True]
+            pop[0].conn_genes[(7, 7)] = conn_gene
+            # node = [avg_fforder, new_type, 0.0, self.response_default, layer]
+            node = [0, 'sin', 0.0, 4.924273, 0]
+            pop[0].node_genes.append(node)
 
     receive_pop_size = input_size
     breakout_pops = []
@@ -340,4 +366,27 @@ y_factor = 32
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
 
-test_agent('champion 11 - 32 f=-6.csv')
+file = 'champion 11 - 32 f=-6.csv'
+hyper = False
+
+geno_kwds = dict(feedforward=True,
+                 inputs=4,
+                 outputs=2,
+                 weight_range=(-50.0, 50.0),
+                 prob_add_conn=0.1,
+                 prob_add_node=0.03,
+                 bias_as_node=False,
+                 types=['sin', 'bound', 'linear', 'gauss', 'sigmoid', 'abs'])
+
+geno = lambda: NEATGenotype(**geno_kwds)
+
+pop = NEATPopulation(geno, popsize=1, target_species=8)
+
+hyper = True
+
+results = pop.epoch(generations=1,
+                    evaluator=test_agent,
+                    solution=None
+                    )
+
+test_agent()
