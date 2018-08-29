@@ -213,8 +213,8 @@ def test_pop(pop):
             hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop {}".format(i)))
             hidden_count += 1
             # hidden_node_pops[hidden_count-1].record()
-        receive_on_pops[i].record()
-        output_pops[i].record()
+        # receive_on_pops[i].record()
+        # output_pops[i].record()
 
         # Create the remaining nodes from the connection matrix and add them up
         if len(i2i) != 0:
@@ -251,38 +251,39 @@ def test_pop(pop):
         scores.append(get_scores(breakout_pop=breakout_pops[i], simulator=simulator))
         pop[i].stats = {'fitness': scores[i][len(scores[i])-1][0]}#, 'steps': 0}
 
-        if i == 0:
-            pylab.figure()
-        spikes_on = output_pops[i].getSpikes()
-        ax = pylab.subplot(1, len(pop), i+1)#4, 1)
-        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-        pylab.xlabel("Time (ms)")
-        pylab.ylabel("neuron ID")
-        pylab.axis([0, runtime, -1, output_size + 1])
-    pylab.show()
+    #     if i == 0:
+    #         pylab.figure()
+    #     spikes_on = output_pops[i].getSpikes()
+    #     ax = pylab.subplot(1, len(pop), i+1)#4, 1)
+    #     pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+    #     pylab.xlabel("Time (ms)")
+    #     pylab.ylabel("neuron ID")
+    #     pylab.axis([0, runtime, -1, output_size + 1])
+    # pylab.show()
+    # # pylab.figure()
+    # # for i in range(hidden_count):
+    # #     spikes_on = hidden_node_pops[i].getSpikes()
+    # #     ax = pylab.subplot(1, len(pop), i+1)#4, 1)
+    # #     pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+    # #     pylab.xlabel("Time (ms)")
+    # #     pylab.ylabel("neuron ID")
+    # #     pylab.axis([0, runtime, -1, receive_pop_size + 1])
+    # # pylab.show()
     # pylab.figure()
-    # for i in range(hidden_count):
-    #     spikes_on = hidden_node_pops[i].getSpikes()
+    # for i in range(len(pop)):
+    #     spikes_on = receive_on_pops[i].getSpikes()
     #     ax = pylab.subplot(1, len(pop), i+1)#4, 1)
     #     pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
     #     pylab.xlabel("Time (ms)")
     #     pylab.ylabel("neuron ID")
     #     pylab.axis([0, runtime, -1, receive_pop_size + 1])
     # pylab.show()
-    pylab.figure()
-    for i in range(len(pop)):
-        spikes_on = receive_on_pops[i].getSpikes()
-        ax = pylab.subplot(1, len(pop), i+1)#4, 1)
-        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-        pylab.xlabel("Time (ms)")
-        pylab.ylabel("neuron ID")
-        pylab.axis([0, runtime, -1, receive_pop_size + 1])
-    pylab.show()
 
     j = 0
     for score in scores:
         print j, score
         j += 1
+    print "factors: ", x_factor
 
     gen_stats(pop)
     save_champion()
@@ -297,25 +298,23 @@ def gen_stats(list_pop):
 def save_champion():
     iteration = len(pop.champions) - 1
     if iteration >= 0:
-        with open('champion {}.csv'.format(iteration), 'w') as file:
-            writer = csv.writer(file, delimiter=',', lineterminator=',')
+        with open('champion {} - {}.csv'.format(iteration, x_factor), 'w') as file:
+            writer = csv.writer(file, delimiter=',', lineterminator='\n')
             for i in pop.champions[iteration].conn_genes:
-                writer.writerow(i[0], i[1], i[2], i[3])
+                writer.writerow(pop.champions[iteration].conn_genes[i])
             for i in pop.champions[iteration].node_genes:
-                writer.writerow(i[0], i[1], i[2], i[3])
+                writer.writerow(i)
             for i in pop.champions[iteration].stats:
-                writer.writerow(i[0], i[1], i[2], i[3])
+                writer.writerow(["fitness", pop.champions[iteration].stats[i]])
             # writer.writerow("\n")
-        with open('champions.csv', 'a') as file:
-            writer = csv.writer(file, delimiter=',', lineterminator=',')
+        with open('champions {}.csv'.format(x_factor), 'a') as file:
+            writer = csv.writer(file, delimiter=',', lineterminator='\n')
             for i in pop.champions[iteration].conn_genes:
-                writer.writerow(i[0], i[1], i[2], i[3])
+                writer.writerow(pop.champions[iteration].conn_genes[i])
             for i in pop.champions[iteration].node_genes:
-                writer.writerow(i[0], i[1], i[2], i[3])
+                writer.writerow(i)
             for i in pop.champions[iteration].stats:
-                writer.writerow(i[0], i[1], i[2], i[3])
-            writer = csv.writer(file, delimiter=' ', lineterminator=' ')
-            writer.writerow("\n")
+                writer.writerow(["fitness", pop.champions[iteration].stats[i]])
 
 X_BITS = 8
 Y_BITS = 8
@@ -328,7 +327,7 @@ Y_RESOLUTION = 128
 UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
 
-runtime = 11000
+runtime = 101000
 
 weight_max = 0.5
 delay = 2
@@ -350,11 +349,11 @@ genotype = lambda: NEATGenotype(inputs=input_size,
                                 feedforward=False)
 
 # Create a population
-pop = NEATPopulation(genotype, popsize=5)
+pop = NEATPopulation(genotype, popsize=150)
 
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"
-pop.epoch(generations=200, evaluator=test_pop, solution=None, SpiNNaker=True)
+pop.epoch(generations=2000, evaluator=test_pop, solution=None, SpiNNaker=True)
 save_champion()
 
 
