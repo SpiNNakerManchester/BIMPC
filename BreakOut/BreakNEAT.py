@@ -15,6 +15,7 @@ import socket
 import numpy as np
 import math
 import csv
+import gc
 
 from peas.methods.neat import NEATPopulation, NEATGenotype
 from peas.networks.rnn import NeuralNetwork
@@ -135,31 +136,32 @@ def connect_genes_to_fromlist(number_of_nodes, connections, nodes):
     o2o_in = []
 
     ex_or_in = []
+    i = 0
     for node in nodes:
-        ex_or_in.append(nodes[node][1])
+        ex_or_in.append(nodes[i][1])
+        i += 1
 
     #individual: Tuples of (innov, from, to, weight, enabled)
 
     hidden_size = number_of_nodes - output_size - input_size
 
-    i = 0
     for conn in connections:
         c = connections[conn]
         connect_weight = c[3] * (weight_max / 50.)
         if c[4] == True:
             if c[1] < input_size:
                 if c[2] < input_size:
-                    if ex_or_in[i] == 'excitatory':
+                    if ex_or_in[c[1]] == 'excitatory':
                         i2i_ex.append((c[1], c[2], connect_weight, delay))
                     else:
                         i2i_in.append((c[1], c[2], connect_weight, delay))
                 elif c[2] < input_size + output_size:
-                    if ex_or_in[i] == 'excitatory':
+                    if ex_or_in[c[1]] == 'excitatory':
                         i2o_ex.append((c[1], c[2]-input_size, connect_weight, delay))
                     else:
                         i2o_in.append((c[1], c[2]-input_size, connect_weight, delay))
                 elif c[2] < input_size + hidden_size + output_size:
-                    if ex_or_in[i] == 'excitatory':
+                    if ex_or_in[c[1]] == 'excitatory':
                         i2h_ex.append((c[1], c[2]-input_size-output_size, connect_weight, delay))
                     else:
                         i2h_in.append((c[1], c[2]-input_size-output_size, connect_weight, delay))
@@ -167,17 +169,17 @@ def connect_genes_to_fromlist(number_of_nodes, connections, nodes):
                     print "shit broke"
             elif c[1] < input_size + output_size:
                 if c[2] < input_size:
-                    if ex_or_in[i] == 'excitatory':
+                    if ex_or_in[c[1]] == 'excitatory':
                         o2i_ex.append((c[1]-input_size, c[2], connect_weight, delay))
                     else:
                         o2i_in.append((c[1]-input_size, c[2], connect_weight, delay))
                 elif c[2] < input_size + output_size:
-                    if ex_or_in[i] == 'excitatory':
+                    if ex_or_in[c[1]] == 'excitatory':
                         o2o_ex.append((c[1]-input_size, c[2]-input_size, connect_weight, delay))
                     else:
                         o2o_in.append((c[1]-input_size, c[2]-input_size, connect_weight, delay))
                 elif c[2] < input_size + hidden_size + output_size:
-                    if ex_or_in[i] == 'excitatory':
+                    if ex_or_in[c[1]] == 'excitatory':
                         o2h_ex.append((c[1]-input_size, c[2]-input_size-output_size, connect_weight, delay))
                     else:
                         o2h_in.append((c[1]-input_size, c[2]-input_size-output_size, connect_weight, delay))
@@ -185,17 +187,17 @@ def connect_genes_to_fromlist(number_of_nodes, connections, nodes):
                     print "shit broke"
             elif c[1] < input_size + hidden_size + output_size:
                 if c[2] < input_size:
-                    if ex_or_in[i] == 'excitatory':
+                    if ex_or_in[c[1]] == 'excitatory':
                         h2i_ex.append((c[1]-input_size-output_size, c[2], connect_weight, delay))
                     else:
                         h2i_in.append((c[1]-input_size-output_size, c[2], connect_weight, delay))
                 elif c[2] < input_size + output_size:
-                    if ex_or_in[i] == 'excitatory':
+                    if ex_or_in[c[1]] == 'excitatory':
                         h2o_ex.append((c[1]-input_size-output_size, c[2]-input_size, connect_weight, delay))
                     else:
                         h2o_in.append((c[1]-input_size-output_size, c[2]-input_size, connect_weight, delay))
                 elif c[2] < input_size + hidden_size + output_size:
-                    if ex_or_in[i] == 'excitatory':
+                    if ex_or_in[c[1]] == 'excitatory':
                         h2h_ex.append((c[1]-input_size-output_size, c[2]-input_size-output_size, connect_weight, delay))
                     else:
                         h2h_in.append((c[1]-input_size-output_size, c[2]-input_size-output_size, connect_weight, delay))
@@ -203,12 +205,13 @@ def connect_genes_to_fromlist(number_of_nodes, connections, nodes):
                     print "shit broke"
             else:
                 print "shit broke"
-        i += 1
 
 
     return i2i_ex, i2h_ex, i2o_ex, h2i_ex, h2h_ex, h2o_ex, o2i_ex, o2h_ex, o2o_ex, i2i_in, i2h_in, i2o_in, h2i_in, h2h_in, h2o_in, o2i_in, o2h_in, o2o_in
 
 def test_pop(pop):
+    # gc.DEBUG_STATS
+    # gc.DEBUG_COLLECTABLE
     #test the whole population and return scores
 
     #Acquire all connection matrices and node types
@@ -237,7 +240,8 @@ def test_pop(pop):
         number_of_nodes = len(pop[i].node_genes)
         hidden_size = number_of_nodes - output_size - input_size
 
-        [i2i_ex, i2h_ex, i2o_ex, h2i_ex, h2h_ex, h2o_ex, o2i_ex, o2h_ex, o2o_ex, i2i_in, i2h_in, i2o_in, h2i_in, h2h_in, h2o_in, o2i_in, o2h_in, o2o_in] = connect_genes_to_fromlist(number_of_nodes, pop[i].conn_genes, pop[i].node_genes)
+        [i2i_ex, i2h_ex, i2o_ex, h2i_ex, h2h_ex, h2o_ex, o2i_ex, o2h_ex, o2o_ex, i2i_in, i2h_in, i2o_in, h2i_in, h2h_in, h2o_in, o2i_in, o2h_in, o2o_in] = \
+            connect_genes_to_fromlist(number_of_nodes, pop[i].conn_genes, pop[i].node_genes)
         # [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = cm_to_fromlist(number_of_nodes, networks[i].cm)
 
         # Create breakout population
@@ -349,6 +353,8 @@ def test_pop(pop):
     save_champion()
     # End simulation
     p.end()
+    # gc.DEBUG_STATS
+    # gc.DEBUG_COLLECTABLE
 
 def gen_stats(list_pop):
     # pop._gather_stats(list_pop)
@@ -375,6 +381,8 @@ def save_champion():
                 writer.writerow(i)
             for i in pop.champions[iteration].stats:
                 writer.writerow(["fitness", pop.champions[iteration].stats[i]])
+
+# gc.set_debug(gc.DEBUG_LEAK)
 
 X_BITS = 8
 Y_BITS = 8
@@ -409,7 +417,7 @@ genotype = lambda: NEATGenotype(inputs=input_size,
                                 feedforward=False)
 
 # Create a population
-pop = NEATPopulation(genotype, popsize=100)
+pop = NEATPopulation(genotype, popsize=200)
 
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"
