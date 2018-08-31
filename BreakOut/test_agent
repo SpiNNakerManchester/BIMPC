@@ -18,6 +18,7 @@ import math
 import csv
 
 from peas.methods.neat import NEATPopulation, NEATGenotype
+from peas.methods.hyperneat import HyperNEATDeveloper, Substrate
 from peas.networks.rnn import NeuralNetwork
 
 def read_agent():
@@ -28,7 +29,8 @@ def read_agent():
         csvFile = csv.reader(from_file)
         for row in csvFile:
             temp = row
-            if temp[1] == 'excitatory' or temp[1] == 'inhibitory':
+            if temp[1] == 'excitatory' or temp[1] == 'inhibitory' or temp[1] == 'sin' or temp[1] == 'bound' or \
+                    temp[1] == 'linear' or temp[1] == 'gauss' or temp[1] == 'sigmoid' or temp[1] == 'abs':
                 # for i in range(len(temp)):
                 #     agent_nodes.append(temp[i])
                 agent_nodes.append(temp)
@@ -221,19 +223,32 @@ def test_agent(pop):
         while i >= 0:
             i -= 1
             for key in pop.node_genes:
-                del pop.node_genes[key]
+                del pop.node_genes[0]
                 i += 1
                 break
-        for i in pop.node_genes:
-            del i
-            del pop.node_genes[0]
-        for i in range(50):
+
+        for i in agent[0]:
             # conn_gene = [innov, fr, to, np.random.normal(0, self.stdev_mutate_weight), True]
-            conn_gene = [7, 7, 7, 7, True]
-            pop[0].conn_genes[(7, 7)] = conn_gene
+            conn_gene = i
+            conn_gene[0] = int(conn_gene[0])
+            conn_gene[1] = int(conn_gene[1])
+            conn_gene[2] = int(conn_gene[2])
+            conn_gene[3] = float(conn_gene[3])
+            if conn_gene[4] == 'True':
+                conn_gene[4] = True
+            else:
+                conn_gene[4] = False
+            conn_gene[4] = bool(conn_gene[4])
+            pop.conn_genes[(i[1], i[2])] = conn_gene
+        for i in agent[1]:
             # node = [avg_fforder, new_type, 0.0, self.response_default, layer]
-            node = [0, 'sin', 0.0, 4.924273, 0]
-            pop[0].node_genes.append(node)
+            node = i
+            node[0] = float(node[0])
+            node[1] = str(node[1])
+            node[2] = float(node[2])
+            node[3] = float(node[3])
+            node[4] = float(node[4])
+            pop.node_genes.append(node)
 
     receive_pop_size = input_size
     breakout_pops = []
@@ -249,10 +264,16 @@ def test_agent(pop):
     p.setup(timestep=1.0)
     p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
 
-    number_of_nodes = len(agent[1])
-    hidden_size = number_of_nodes - output_size - input_size
+    if hyper == True:
+        phenotype = developer.convert(pop)
 
-    [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = connect_genes_to_fromlist(number_of_nodes, agent[0])
+        number_of_nodes = len(phenotype.node_types)
+        hidden_size = number_of_nodes - output_size - input_size
+        [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = cm_to_fromlist(number_of_nodes, phenotype.cm)
+    else:
+        number_of_nodes = len(agent[1])
+        hidden_size = number_of_nodes - output_size - input_size
+        [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = connect_genes_to_fromlist(number_of_nodes, agent[0])
 
     # Create breakout population
     breakout_pop = p.Population(1, spinn_breakout.Breakout, {}, label="breakout")
@@ -309,7 +330,7 @@ def test_agent(pop):
 
     # pylab.figure()
     # spikes_on = receive_on_pop.getSpikes()
-    # ax = pylab.subplot(1, 3, 3)#4, 1)
+    # ax = pylab.subplot(1, 3, 1)#4, 1)
     # pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
     # pylab.xlabel("Time (ms)")
     # pylab.ylabel("neuron ID")
@@ -326,7 +347,7 @@ def test_agent(pop):
     # # pylab.show()
     # # pylab.figure()
     # spikes_on = output_pop.getSpikes()
-    # ax = pylab.subplot(1, 3, 1)#4, 1)
+    # ax = pylab.subplot(1, 3, 3)#4, 1)
     # pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
     # pylab.xlabel("Time (ms)")
     # pylab.ylabel("neuron ID")
@@ -355,38 +376,63 @@ UDP_PORT = 17893
 
 runtime = 101000
 
-weight_max = 0.5
+weight_max = 1
 delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 32
-y_factor = 32
+x_factor = 16
+y_factor = 16
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
 
-file = 'champion 11 - 32 f=-6.csv'
+# file = 'test champion 11 - 32 f=-6.csv'
+# file = 'test hyper champion 25 - 16 f=-2.csv'
+file = 'test champion 28 - 24 f=0.csv'
 hyper = False
 
-geno_kwds = dict(feedforward=True,
-                 inputs=4,
-                 outputs=2,
-                 weight_range=(-50.0, 50.0),
-                 prob_add_conn=0.1,
-                 prob_add_node=0.03,
-                 bias_as_node=False,
-                 types=['sin', 'bound', 'linear', 'gauss', 'sigmoid', 'abs'])
+if hyper == True:
+    geno_kwds = dict(feedforward=True,
+                     inputs=4,
+                     outputs=2,
+                     weight_range=(-50.0, 50.0),
+                     prob_add_conn=0.1,
+                     prob_add_node=0.03,
+                     bias_as_node=False,
+                     types=['sin', 'bound', 'linear', 'gauss', 'sigmoid', 'abs'])
 
-geno = lambda: NEATGenotype(**geno_kwds)
+    geno = lambda: NEATGenotype(**geno_kwds)
 
-pop = NEATPopulation(geno, popsize=1, target_species=8)
 
-hyper = True
+    # Configure substrate
+    substrate = Substrate()
+    print "adding input"
+    substrate.add_nodes([(r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+                              for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'input')
+    print "adding output"
+    substrate.add_nodes([(r, theta) for r in np.linspace(0,0,1)
+                              for theta in np.linspace(-1, 1, 2)], 'output')
+    print "adding hidden"
+    substrate.add_nodes([(r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+                              for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden')
 
-results = pop.epoch(generations=1,
-                    evaluator=test_agent,
-                    solution=None
-                    )
+    print "adding connections"
+    substrate.add_connections('input', 'hidden', -1)
+    substrate.add_connections('hidden', 'output',-2)
+
+    developer = HyperNEATDeveloper(substrate=substrate,
+                                   add_deltas=False,
+                                   sandwich=False,
+                                   feedforward=False,
+                                   node_type=(('excitatory'), ('inhibitory')))
+
+    pop = NEATPopulation(geno, popsize=1, target_species=8)
+
+
+    results = pop.epoch(generations=1,
+                        evaluator=test_agent,
+                        solution=None
+                        )
 
 test_agent()
