@@ -11,6 +11,7 @@ import multiprocessing
 from copy import deepcopy
 from itertools import product
 from collections import defaultdict
+from pympler.tracker import SummaryTracker
 
 # Libs
 import numpy as np
@@ -73,7 +74,7 @@ class SimplePopulation(object):
         self.solved_at  = None
         self.stats = defaultdict(list)
                 
-    def epoch(self, evaluator, generations, solution=None, reset=True, callback=None):
+    def epoch(self, evaluator, generations, tracker, solution=None, reset=True, callback=None, SpiNNaker=False):
         """ Runs an evolutionary epoch 
 
             :param evaluator:    Either a function or an object with a function
@@ -83,9 +84,14 @@ class SimplePopulation(object):
         """
         if reset:
             self._reset()
-        
+
         for _ in xrange(generations):
-            self._evolve(evaluator, solution)
+            print "start of the generation"
+            # tracker.print_diff()
+            if SpiNNaker == True:
+                self._evolve(evaluator, tracker, solution, SpiNNaker)
+            else:
+                self._evolve(evaluator, solution)
 
             self.generation += 1
 
@@ -97,6 +103,8 @@ class SimplePopulation(object):
                 
             if self.solved_at is not None and self.stop_when_solved:
                 break
+            print "end of the generation"
+            # tracker.print_diff()
                 
         return {'stats': self.stats, 'champions': self.champions}
         
@@ -122,6 +130,14 @@ class SimplePopulation(object):
             self.population.append(individual)
         
         return self.population
+
+    def _SpiNNaker_all(self, pop, evaluator, tracker):
+        print "spinn all"
+        # tracker.print_diff()
+        print "starting eval"
+        evaluator(pop, tracker)
+        print "finished spinn all"
+        # tracker.print_diff()
         
     def _evaluate_all(self, pop, evaluator):
         """ Evaluates all of the individuals in given pop,

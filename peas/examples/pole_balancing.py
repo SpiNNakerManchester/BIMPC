@@ -13,10 +13,11 @@ from peas.tasks.polebalance import PoleBalanceTask
 # instance each time it is called)
 genotype = lambda: NEATGenotype(inputs=6, 
                                 weight_range=(-50., 50.), 
-                                types=['tanh'])
+                                types=['tanh'],
+                                feedforward=False)
 
 # Create a population
-pop = NEATPopulation(genotype, popsize=150)
+pop = NEATPopulation(genotype, popsize=20)
     
 # Create a task
 dpnv = PoleBalanceTask(velocities=True, 
@@ -24,4 +25,4 @@ dpnv = PoleBalanceTask(velocities=True,
                        penalize_oscillation=True)
 
 # Run the evolution, tell it to use the task as an evaluator
-pop.epoch(generations=100, evaluator=dpnv, solution=dpnv)
+pop.epoch(generations=200, evaluator=dpnv, solution=dpnv)

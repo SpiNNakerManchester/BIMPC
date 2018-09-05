@@ -11,6 +11,7 @@ import os
 import pymunk
 import numpy as np
 from scipy.misc import imread
+# import imread
 
 # Local
 from ...networks.rnn import NeuralNetwork

@@ -465,7 +465,7 @@ class NEATPopulation(SimplePopulation):
             for member in specie.members:
                 yield member
         
-    def _evolve(self, evaluator, solution=None):
+    def _evolve(self, evaluator, tracker, solution=None, SpiNNaker=False):
         """ A single evolutionary step .
         """
         # Unpack species
@@ -476,8 +476,11 @@ class NEATPopulation(SimplePopulation):
             individual = self.geno_factory()
             pop.append(individual)
             
-        ## EVALUATE 
-        pop = self._evaluate_all(pop, evaluator)
+        ## EVALUATE
+        if SpiNNaker == True:
+            self._SpiNNaker_all(pop, evaluator, tracker)
+        else:
+            pop = self._evaluate_all(pop, evaluator)
                 
         ## SPECIATE
         # Select random representatives

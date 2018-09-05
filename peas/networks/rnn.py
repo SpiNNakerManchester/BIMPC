@@ -100,7 +100,10 @@ class NeuralNetwork(object):
         if len(self.node_types) == 1:
             self.node_types *= n_nodes
         self.act = np.zeros(self.cm.shape[0])
-        self.optimize()
+        if node_types[0][0] == 'excitatory' or node_types[0][0] == 'inhibitory' or node_types[0] == 'excitatory' or node_types[0] == 'inhibitory':
+            None
+        else:
+            self.optimize()
         return self
         
     def from_neatchromosome(self, chromosome):
@@ -249,7 +252,7 @@ class NeuralNetwork(object):
                 nodeinputs = np.dot(self.cm, act)
             else:
                 nodeinputs = self.cm * act
-                nodeinputs = [ni[-np.isnan(ni)] for ni in nodeinputs]
+                nodeinputs = [ni[~np.isnan(ni)] for ni in nodeinputs]
             
             if self.all_nodes_same_function:
                 act = node_types[0](nodeinputs)
