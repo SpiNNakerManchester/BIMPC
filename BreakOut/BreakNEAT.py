@@ -4,6 +4,7 @@ import spynnaker7.pyNN as p
 from spynnaker.pyNN.connections.\
     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
 from spinn_front_end_common.utilities.globals_variables import get_simulator
+from pympler.tracker import SummaryTracker
 
 import pylab
 from spynnaker.pyNN.spynnaker_external_device_plugin_manager import \
@@ -209,10 +210,12 @@ def connect_genes_to_fromlist(number_of_nodes, connections, nodes):
 
     return i2i_ex, i2h_ex, i2o_ex, h2i_ex, h2h_ex, h2o_ex, o2i_ex, o2h_ex, o2o_ex, i2i_in, i2h_in, i2o_in, h2i_in, h2h_in, h2o_in, o2i_in, o2h_in, o2o_in
 
-def test_pop(pop):
+def test_pop(pop, tracker):
     # gc.DEBUG_STATS
     # gc.DEBUG_COLLECTABLE
     #test the whole population and return scores
+    print "start"
+    tracker.print_diff()
 
     #Acquire all connection matrices and node types
     # networks = []
@@ -228,12 +231,12 @@ def test_pop(pop):
     weight = 0.1
     [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
                                                              row_col_to_input_breakout)
-
     # Setup pyNN simulation
     p.setup(timestep=1.0)
     p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
 
     print len(pop)
+    tracker.print_diff()
     #create the SpiNN nets
     for i in range(len(pop)):
 
@@ -242,23 +245,35 @@ def test_pop(pop):
 
         [i2i_ex, i2h_ex, i2o_ex, h2i_ex, h2h_ex, h2o_ex, o2i_ex, o2h_ex, o2o_ex, i2i_in, i2h_in, i2o_in, h2i_in, h2h_in, h2o_in, o2i_in, o2h_in, o2o_in] = \
             connect_genes_to_fromlist(number_of_nodes, pop[i].conn_genes, pop[i].node_genes)
+        # print "after creating connections"
+        # tracker.print_diff()
         # [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = cm_to_fromlist(number_of_nodes, networks[i].cm)
 
         # Create breakout population
         breakout_pops.append(p.Population(1, spinn_breakout.Breakout, {}, label="breakout {}".format(i)))
+        print "after creating breakout"
+        tracker.print_diff()
 
         # Create input population and connect break out to it
         receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop {}".format(i)))
+        print "after creating receive pop"
+        tracker.print_diff()
         p.Projection(breakout_pops[i], receive_on_pops[i], p.FromListConnector(Connections_on))
+        print "after creating receive projection"
+        tracker.print_diff()
 
         # Create output population and remaining population
         output_pops.append(p.Population(output_size, p.IF_cond_exp, {}, label="output_pop {}".format(i)))
         p.Projection(output_pops[i], breakout_pops[i], p.AllToAllConnector())
+        print "after creating output"
+        tracker.print_diff()
 
         if hidden_size != 0:
             hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop {}".format(i)))
             hidden_count += 1
             # hidden_node_pops[hidden_count-1].record()
+        print "after creating hidden"
+        tracker.print_diff()
         # receive_on_pops[i].record()
         # output_pops[i].record()
 
@@ -299,13 +314,15 @@ def test_pop(pop):
             p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h_in), target='inhibitory')
         if len(o2o_in) != 0:
             p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o_in), target='inhibitory')
+        print "after creating projections"
+        tracker.print_diff()
 
 
 
     print "reached here 1"
+    tracker.print_diff()
 
     simulator = get_simulator()
-
     p.run(runtime)
 
     print "reached here 2"
@@ -402,9 +419,10 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 24
-y_factor = 24
+x_factor = 32
+y_factor = 32
 
+#current rounds off each number to create a super rounded off int
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
 
@@ -417,11 +435,12 @@ genotype = lambda: NEATGenotype(inputs=input_size,
                                 feedforward=False)
 
 # Create a population
-pop = NEATPopulation(genotype, popsize=200)
+pop = NEATPopulation(genotype, popsize=100)
 
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"
-pop.epoch(generations=2000, evaluator=test_pop, solution=None, SpiNNaker=True)
+tracker = SummaryTracker()
+pop.epoch(tracker=tracker, generations=2000, evaluator=test_pop, solution=None, SpiNNaker=True)
 save_champion()
 
 

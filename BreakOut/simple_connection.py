@@ -125,16 +125,16 @@ p.Projection(spike_input2, breakout_pop2, p.AllToAllConnector(weights=2))
 # key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["input_connect"])
 
 weight = 0.1
-x_factor = 4
-y_factor = 4
+x_factor = 1
+y_factor = 1
 [Connections_on, Connections_off]=subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight, row_col_to_input_breakout)
 receive_pop_size = (160/x_factor)*(128/y_factor)
 receive_pop_on = p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop")
-# receive_pop_on.record()#["spikes"])
 receive_pop_off = p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop")
-# receive_pop_off.record()#["spikes"])
 p.Projection(breakout_pop,receive_pop_on,p.FromListConnector(Connections_on))
 p.Projection(breakout_pop,receive_pop_off,p.FromListConnector(Connections_off))
+receive_pop_on.record()#["spikes"])
+receive_pop_off.record()#["spikes"])
 
 # Create visualiser
 # visualiser = Visualiser(
@@ -170,15 +170,15 @@ running = False
 # Show visualiser (blocking)
 # visualiser.show()
 
-# spikes = []
+spikes = []
 # for j in range(receive_pop_size):
-# spikes_on = receive_pop_on.getSpikes()
-# pylab.figure()
-# ax = pylab.subplot(1, 2, 1)#4, 1)
-# pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-# pylab.xlabel("Time (ms)")
-# pylab.ylabel("neuron ID")
-# pylab.axis([0, runtime, -1, receive_pop_size +1])
+spikes_on = receive_pop_on.getSpikes()
+pylab.figure()
+ax = pylab.subplot(1, 2, 1)#4, 1)
+pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+pylab.xlabel("Time (ms)")
+pylab.ylabel("neuron ID")
+pylab.axis([0, runtime, -1, receive_pop_size +1])
 
 # ax = pylab.subplot(1, 4, 2)
 # img = np.zeros((y_res//y_factor)*(x_res//x_factor))
@@ -187,19 +187,19 @@ running = False
 
 # pylab.show()
 
-# ax = pylab.subplot(1, 2, 2)#4, 3)
-# spikes_off = receive_pop_off.getSpikes()
-# pylab.plot([i[1] for i in spikes_off], [i[0] for i in spikes_off], "r.")
-# pylab.xlabel("Time (ms)")
-# pylab.ylabel("neuron ID")
-# pylab.axis([0, runtime, -1, receive_pop_size +1])
+ax = pylab.subplot(1, 2, 2)#4, 3)
+spikes_off = receive_pop_off.getSpikes()
+pylab.plot([i[1] for i in spikes_off], [i[0] for i in spikes_off], "r.")
+pylab.xlabel("Time (ms)")
+pylab.ylabel("neuron ID")
+pylab.axis([0, runtime, -1, receive_pop_size +1])
 
 # ax = pylab.subplot(1, 4, 4)
 # img = np.zeros((y_res//y_factor)*(x_res//x_factor))
 # img[[i[0] for i in spikes_off]] = 1.
 # plt.imshow(img.reshape((y_res//y_factor), (x_res//x_factor)), interpolation='none')
 
-# pylab.show()
+pylab.show()
 
 scores = get_scores(breakout_pop=breakout_pop, simulator=simulator)
 scores2 = get_scores(breakout_pop=breakout_pop2, simulator=simulator)
