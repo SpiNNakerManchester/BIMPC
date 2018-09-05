@@ -87,7 +87,7 @@ class SimplePopulation(object):
 
         for _ in xrange(generations):
             print "start of the generation"
-            # tracker.print_diff()
+            tracker.print_diff()
             if SpiNNaker == True:
                 self._evolve(evaluator, tracker, solution, SpiNNaker)
             else:
