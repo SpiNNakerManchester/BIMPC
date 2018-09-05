@@ -215,7 +215,7 @@ def test_pop(pop, tracker):
     # gc.DEBUG_COLLECTABLE
     #test the whole population and return scores
     print "start"
-    tracker.print_diff()
+    # tracker.print_diff()
 
     #Acquire all connection matrices and node types
     # networks = []
@@ -228,15 +228,15 @@ def test_pop(pop, tracker):
     hidden_node_pops = []
     hidden_count = 0
     output_pops = []
-    weight = 0.1
-    [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
-                                                             row_col_to_input_breakout)
+    # weight = 0.1
+    # [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
+    #                                                          row_col_to_input_breakout)
     # Setup pyNN simulation
     p.setup(timestep=1.0)
     p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
 
     print len(pop)
-    tracker.print_diff()
+    # tracker.print_diff()
     #create the SpiNN nets
     for i in range(len(pop)):
 
@@ -251,29 +251,29 @@ def test_pop(pop, tracker):
 
         # Create breakout population
         breakout_pops.append(p.Population(1, spinn_breakout.Breakout, {}, label="breakout {}".format(i)))
-        print "after creating breakout"
-        tracker.print_diff()
+        # print "after creating breakout"
+        # tracker.print_diff()
 
         # Create input population and connect break out to it
         receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop {}".format(i)))
-        print "after creating receive pop"
-        tracker.print_diff()
-        p.Projection(breakout_pops[i], receive_on_pops[i], p.FromListConnector(Connections_on))
-        print "after creating receive projection"
-        tracker.print_diff()
+        # print "after creating receive pop"
+        # tracker.print_diff()
+        p.Projection(breakout_pops[i], receive_on_pops[i], breakout_connections)
+        # print "after creating receive projection"
+        # tracker.print_diff()
 
         # Create output population and remaining population
         output_pops.append(p.Population(output_size, p.IF_cond_exp, {}, label="output_pop {}".format(i)))
         p.Projection(output_pops[i], breakout_pops[i], p.AllToAllConnector())
-        print "after creating output"
-        tracker.print_diff()
+        # print "after creating output"
+        # tracker.print_diff()
 
         if hidden_size != 0:
             hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop {}".format(i)))
             hidden_count += 1
             # hidden_node_pops[hidden_count-1].record()
-        print "after creating hidden"
-        tracker.print_diff()
+        # print "after creating hidden"
+        # tracker.print_diff()
         # receive_on_pops[i].record()
         # output_pops[i].record()
 
@@ -314,13 +314,13 @@ def test_pop(pop, tracker):
             p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h_in), target='inhibitory')
         if len(o2o_in) != 0:
             p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o_in), target='inhibitory')
-        print "after creating projections"
-        tracker.print_diff()
+        # print "after creating projections"
+        # tracker.print_diff()
 
 
 
     print "reached here 1"
-    tracker.print_diff()
+    # tracker.print_diff()
 
     simulator = get_simulator()
     p.run(runtime)
@@ -412,7 +412,7 @@ Y_RESOLUTION = 128
 UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
 
-runtime = 101000
+runtime = 501000
 
 weight_max = 0.5
 delay = 2
@@ -421,6 +421,15 @@ x_res = 160
 y_res = 128
 x_factor = 32
 y_factor = 32
+
+weight = 0.1
+[Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
+                                                         row_col_to_input_breakout)
+
+p.setup(timestep=1.0)
+p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
+breakout_connections = p.FromListConnector(Connections_on)
+p.end()
 
 #current rounds off each number to create a super rounded off int
 input_size = (x_res/x_factor)*(y_res/y_factor)
@@ -435,7 +444,7 @@ genotype = lambda: NEATGenotype(inputs=input_size,
                                 feedforward=False)
 
 # Create a population
-pop = NEATPopulation(genotype, popsize=100)
+pop = NEATPopulation(genotype, popsize=200)
 
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"
