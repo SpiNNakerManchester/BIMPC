@@ -463,15 +463,16 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 24
-y_factor = 24
+x_factor = 16
+y_factor = 16
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
 
 # file = 'test champion 11 - 32 f=-6.csv'
 # file = 'test hyper champion 25 - 16 f=-2.csv'
-file = 'test champion 28 - 24 f=0.csv'
+# file = 'test champion 28 - 24 f=0.csv'
+file = 'first brick slight mover 16.csv'
 hyper = False
 
 if hyper == True:

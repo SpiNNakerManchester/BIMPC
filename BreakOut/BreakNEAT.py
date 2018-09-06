@@ -215,6 +215,8 @@ def test_pop(pop, tracker):
     # gc.DEBUG_COLLECTABLE
     #test the whole population and return scores
     print "start"
+    gen_stats(pop)
+    save_champion()
     # tracker.print_diff()
 
     #Acquire all connection matrices and node types
@@ -365,9 +367,6 @@ def test_pop(pop, tracker):
         print j, score
         j += 1
     print "factors: ", x_factor
-
-    gen_stats(pop)
-    save_champion()
     # End simulation
     p.end()
     # gc.DEBUG_STATS
@@ -419,8 +418,8 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 32
-y_factor = 32
+x_factor = 8
+y_factor = 8
 
 weight = 0.1
 [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
@@ -444,7 +443,7 @@ genotype = lambda: NEATGenotype(inputs=input_size,
                                 feedforward=False)
 
 # Create a population
-pop = NEATPopulation(genotype, popsize=200)
+pop = NEATPopulation(genotype, popsize=100)
 
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"

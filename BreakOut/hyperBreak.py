@@ -222,9 +222,9 @@ def test_pop(pop, tracker):
     hidden_node_pops = []
     hidden_count = 0
     output_pops = []
-    weight = 0.1
-    [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
-                                                             row_col_to_input_breakout)
+    # weight = 0.1
+    # [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
+    #                                                          row_col_to_input_breakout)
 
     # Setup pyNN simulation
     p.setup(timestep=1.0)
@@ -249,7 +249,7 @@ def test_pop(pop, tracker):
 
         # Create input population and connect break out to it
         receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop {}".format(i)))
-        p.Projection(breakout_pops[i], receive_on_pops[i], p.FromListConnector(Connections_on))
+        p.Projection(breakout_pops[i], receive_on_pops[i], breakout_connections)
 
         # Create output population and remaining population
         output_pops.append(p.Population(output_size, p.IF_cond_exp, {}, label="output_pop {}".format(i)))
@@ -304,7 +304,7 @@ def test_pop(pop, tracker):
 
     print "reached here 1"
 
-    runtime = 101000
+    runtime = 501000
 
     simulator = get_simulator()
 
@@ -401,11 +401,20 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 16
-y_factor = 16
+x_factor = 8
+y_factor = 8
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
+
+weight = 0.1
+[Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
+                                                         row_col_to_input_breakout)
+
+p.setup(timestep=1.0)
+p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
+breakout_connections = p.FromListConnector(Connections_on)
+p.end()
 
 # Configure substrate
 substrate = Substrate()
