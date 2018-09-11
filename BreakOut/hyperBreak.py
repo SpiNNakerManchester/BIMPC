@@ -211,6 +211,9 @@ def connect_genes_to_fromlist(number_of_nodes, indiviudal):
 def test_pop(pop, tracker):
     #test the whole population and return scores
 
+    gen_stats(pop)
+    save_champion()
+
     #Acquire all connection matrices and node types
     # networks = []
     # for individual in pop:
@@ -351,9 +354,6 @@ def test_pop(pop, tracker):
         j += 1
 
     print "factors: ", x_factor
-
-    gen_stats(pop)
-    save_champion()
     # End simulation
     p.end()
 
