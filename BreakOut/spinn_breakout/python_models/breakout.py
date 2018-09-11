@@ -124,7 +124,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         self._height_bits = numpy.uint32(numpy.ceil(numpy.log2(height)))
 
         self._n_neurons = (1 << (self._width_bits + self._height_bits +
-                                 self._colour_bits))
+                                 self._colour_bits + 1))
 
         #used to define size of recording region
         self._recording_size = int((simulation_duration_ms/10000.) * 4)
