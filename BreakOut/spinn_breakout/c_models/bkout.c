@@ -19,6 +19,8 @@
 #include <data_specification.h>
 #include <simulation.h>
 
+#include <recording.h>
+
 //----------------------------------------------------------------------------
 // Macros
 //----------------------------------------------------------------------------
@@ -60,7 +62,7 @@ typedef enum
 {
   REGION_SYSTEM,
   REGION_BREAKOUT,
-  REGION_PROVENANCE,
+  REGION_RECORDING,
 } region_t;
 
 typedef enum
@@ -147,6 +149,8 @@ uint32_t left_key_count = 0;
 uint32_t right_key_count = 0;
 uint32_t move_count_r = 0;
 uint32_t move_count_l = 0;
+uint32_t score_change_count=0;
+int32_t current_score = 0;
 
 //ratio used in randomising initial x coordinate
 static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH);
@@ -159,12 +163,14 @@ static inline void add_score_up_event()
 {
   spin1_send_mc_packet(key | (SPECIAL_EVENT_SCORE_UP), 0, NO_PAYLOAD);
   log_debug("Score up");
+  current_score++;
 }
 
 static inline void add_score_down_event()
 {
   spin1_send_mc_packet(key | (SPECIAL_EVENT_SCORE_DOWN), 0, NO_PAYLOAD);
   log_debug("Score down");
+  current_score--;
 }
 
 void add_event(int i, int j, colour_t col, bool bricked)
@@ -342,10 +348,12 @@ static void update_frame ()
     x += u;
     if (x < -u)
     {
+//      log_info("OUT 1");
       u = -u;
     }
     if (x >= ((GAME_WIDTH*FACT)-u))
     {
+//      log_info("OUT 2 x = %d, u = %d, gw = %d, fact = %d", x, u, GAME_WIDTH, FACT);
       u = -u;
     }
 
@@ -370,45 +378,66 @@ static void update_frame ()
         int brick_y = (brick_corner_y* BRICK_HEIGHT + BRICK_LAYER_OFFSET);
 //        log_info("x-brick_x = %d, %d %d",x/FACT - brick_x, x/FACT, brick_x);
 //        log_info("y-brick_y = %d, %d %d",y/FACT - brick_y, y/FACT, brick_y);
-        if ( brick_x == x/FACT  || x/FACT == brick_x + BRICK_WIDTH - 1){
+
+        if ( brick_x == x/FACT && u > 0){
             u = -u;
         }
-        if (brick_y  == y/FACT || y/FACT ==  brick_y + BRICK_HEIGHT - 1){
+        else if (x/FACT == brick_x + BRICK_WIDTH - 1 && u < 0){
+            u = -u;
+        }
+        if (brick_y  == y/FACT && v > 0){
+            v = -v;
+        }
+        if (y/FACT ==  brick_y + BRICK_HEIGHT - 1 && v < 0){
             v = -v;
         }
 
         set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND, bricked);
 
         bricked= false;
-      // Increase score
-      add_score_up_event();
+        // Increase score
+        add_score_up_event();
     }
 
 
-    if (get_pixel_col(x / FACT, y / FACT) & COLOUR_HARD)
+    if (get_pixel_col(x / FACT, y / FACT) & COLOUR_HARD && y > GAME_HEIGHT*(FACT / 2))
     {
+        bool broke = false;
       if (x/FACT < (x_bat+bat_len/4))
       {
+//        log_info("BAT 1");
         u = -FACT;
       }
       else if (x/FACT < (x_bat+bat_len/2))
       {
+//        log_info("BAT 2");
         u = -FACT/2;
       }
       else if (x/FACT < (x_bat+3*bat_len/4))
       {
+//        log_info("BAT 3");
         u = FACT/2;
+      }
+      else if (x/FACT < (x_bat+bat_len))
+      {
+//        log_info("BAT 4");
+        u = FACT;
       }
       else
       {
-        u = FACT;
+        log_info("Broke bat 0x%x", (frame_buff[(x/FACT) / 8][y/FACT] >> ((x/FACT % 8)*4) & 0xF));
+        broke = true;
+//        u = FACT;
       }
 
 //     if (bricked) {
 //        set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND, bricked);
 //     }
-      v = -FACT;
-      y -= FACT;
+        if (broke == false)
+        {
+          v = -FACT;
+          y -= FACT;
+        }
       // Increase score
 //      add_score_up_event();
     }
@@ -420,6 +449,7 @@ static void update_frame ()
       y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
 
       if(mars_kiss32() > 0xFFFF){
+//        log_info("MARS 1");
         u = -u;
       }
 
@@ -484,14 +514,24 @@ static bool initialize(uint32_t *timer_period)
       return false;
   }
   log_info("simulation time = %u", simulation_ticks);
-  log_info("infinite run = %d", infinite_run);
-  log_info("provenance address = %x", data_specification_get_region(REGION_PROVENANCE, address));
+
 
   // Read breakout region
   address_t breakout_region = data_specification_get_region(REGION_BREAKOUT, address);
   key = breakout_region[0];
   log_info("\tKey=%08x", key);
   log_info("\tTimer period=%d", *timer_period);
+
+    //get recording region
+   address_t recording_address = data_specification_get_region(
+                                       REGION_RECORDING,address);
+   // Setup recording
+   uint32_t recording_flags = 0;
+   if (!recording_initialize(recording_address, &recording_flags))
+   {
+       rt_error(RTE_SWERR);
+       return false;
+   }
 
   log_info("Initialise: completed successfully");
 
@@ -513,6 +553,10 @@ static bool initialize(uint32_t *timer_period)
     if (port == 7) spin1_exit (0);
 }*/
 
+void resume_callback() {
+    recording_reset();
+}
+
 void timer_callback(uint unused, uint dummy)
 {
   use(unused);
@@ -523,49 +567,52 @@ void timer_callback(uint unused, uint dummy)
     //this makes it count twice, WTF!?
 
   _time++;
+  score_change_count++;
 
-   if (!current_number_of_bricks) {
-        for (int i =0; i<BRICKS_PER_COLUMN; i++)
-            for (int j=0; j<BRICKS_PER_ROW; j++) {
-                bricks[i][j] = true;
-                }
-          current_number_of_bricks = BRICKS_PER_COLUMN * BRICKS_PER_ROW;
-          print_bricks = true;
-          v = -1 * FACT;
-      y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
-
-      if(mars_kiss32() > 0xFFFF){
-        u = -u;
-      }
-
-      //randomises initial x location
-      x = GAME_WIDTH;
-
-      while (x >= GAME_WIDTH)
-         x = (int)(mars_kiss32()/x_ratio);
-//      x = (int)(mars_kiss32()%GAME_WIDTH);
-//      log_info("random x = %d", x);
-      x *= FACT;
-   }
-
-   if (print_bricks) {
-    print_bricks = false;
-    for (int i =0; i<BRICKS_PER_COLUMN; i++)
-        for (int j=0; j<BRICKS_PER_ROW; j++) {
-            if (bricks[i][j]) {
-                add_event(j * BRICK_WIDTH,
-                              i* BRICK_HEIGHT + BRICK_LAYER_OFFSET,
-                              COLOUR_BRICK_ON, true);
-
-            }
-        }
-    log_info("printed bricks");
-   }
+//   if (!current_number_of_bricks) {
+//        for (int i =0; i<BRICKS_PER_COLUMN; i++)
+//            for (int j=0; j<BRICKS_PER_ROW; j++) {
+//                bricks[i][j] = true;
+//                }
+//          current_number_of_bricks = BRICKS_PER_COLUMN * BRICKS_PER_ROW;
+//          print_bricks = true;
+//          v = -1 * FACT;
+//      y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
+//
+//      if(mars_kiss32() > 0xFFFF){
+//        u = -u;
+//      }
+//
+//      //randomises initial x location
+//      x = GAME_WIDTH;
+//
+//      while (x >= GAME_WIDTH)
+//         x = (int)(mars_kiss32()/x_ratio);
+////      x = (int)(mars_kiss32()%GAME_WIDTH);
+////      log_info("random x = %d", x);
+//      x *= FACT;
+//   }
+//
+//   if (print_bricks) {
+//    print_bricks = false;
+//    for (int i =0; i<BRICKS_PER_COLUMN; i++)
+//        for (int j=0; j<BRICKS_PER_ROW; j++) {
+//            if (bricks[i][j]) {
+//                add_event(j * BRICK_WIDTH,
+//                              i* BRICK_HEIGHT + BRICK_LAYER_OFFSET,
+//                              COLOUR_BRICK_ON, true);
+//
+//            }
+//        }
+//    log_info("printed bricks");
+//   }
 
   if (!infinite_run && _time >= simulation_ticks)
   {
     //spin1_pause();
+    recording_finalise();
     // go into pause and resume state to avoid another tick
+    simulation_handle_pause_resume(resume_callback);
 //    spin1_callback_off(MC_PACKET_RECEIVED);
 
     log_info("move count Left %u", move_count_l);
@@ -588,6 +635,44 @@ void timer_callback(uint unused, uint dummy)
     tick_in_frame++;
     if(tick_in_frame == FRAME_DELAY)
     {
+      if (!current_number_of_bricks) {
+        for (int i =0; i<BRICKS_PER_COLUMN; i++)
+            for (int j=0; j<BRICKS_PER_ROW; j++) {
+                bricks[i][j] = true;
+                }
+          current_number_of_bricks = BRICKS_PER_COLUMN * BRICKS_PER_ROW;
+//          print_bricks = true;
+          v = -1 * FACT;
+      y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
+
+      if(mars_kiss32() > 0xFFFF){
+//        log_info("MARS 2");
+        u = -u;
+      }
+
+      //randomises initial x location
+      x = GAME_WIDTH;
+
+      while (x >= GAME_WIDTH)
+         x = (int)(mars_kiss32()/x_ratio);
+//      x = (int)(mars_kiss32()%GAME_WIDTH);
+//      log_info("random x = %d", x);
+      x *= FACT;
+      }
+
+//       if (print_bricks) {
+//        print_bricks = false;
+        for (int i =0; i<BRICKS_PER_COLUMN; i++)
+            for (int j=0; j<BRICKS_PER_ROW; j++) {
+                if (bricks[i][j]) {
+                    add_event(j * BRICK_WIDTH,
+                                  i* BRICK_HEIGHT + BRICK_LAYER_OFFSET,
+                                  COLOUR_BRICK_ON, true);
+
+                }
+            }
+//        log_info("printed bricks");
+//       }
       //log_info("pkts: %u   L: %u   R: %u", pkt_count, move_count_l, move_count_r);
       // If this is the first update, draw bat as
       // collision detection relies on this
@@ -604,6 +689,11 @@ void timer_callback(uint unused, uint dummy)
       tick_in_frame = 0;
       //print_bricks = true;
       update_frame();
+      // Update recorded score every 10s
+      if(score_change_count>=10000){
+        recording_record(0, &current_score, 4);
+        score_change_count=0;
+      }
     }
   }
 //  log_info("time %u", ticks);
