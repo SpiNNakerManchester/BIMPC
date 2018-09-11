@@ -74,7 +74,7 @@ class SimplePopulation(object):
         self.solved_at  = None
         self.stats = defaultdict(list)
                 
-    def epoch(self, evaluator, generations, tracker, solution=None, reset=True, callback=None, SpiNNaker=False):
+    def epoch(self, evaluator, generations, tracker=None, solution=None, reset=True, callback=None, SpiNNaker=False):
         """ Runs an evolutionary epoch 
 
             :param evaluator:    Either a function or an object with a function
