@@ -372,9 +372,9 @@ def test_agent(pop):
 
     if hidden_size != 0:
         hidden_node_pop = p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop")
-    #     hidden_node_pop.record()
-    # receive_on_pop.record()
-    # output_pop.record()
+        hidden_node_pop.record()
+    receive_on_pop.record()
+    output_pop.record()
 
     if hyper == False:
         if len(i2i_ex) != 0:
@@ -458,7 +458,7 @@ def test_agent(pop):
 
     simulator = get_simulator()
 
-    p.run(None)
+    p.run(runtime)
 
     # Show visualiser (blocking)
     visualiser.show()
@@ -467,31 +467,31 @@ def test_agent(pop):
 
     scores = get_scores(breakout_pop=breakout_pop, simulator=simulator)
 
-    # pylab.figure()
-    # spikes_on = receive_on_pop.getSpikes()
-    # ax = pylab.subplot(1, 3, 1)#4, 1)
-    # pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-    # pylab.xlabel("Time (ms)")
-    # pylab.ylabel("neuron ID")
-    # pylab.axis([0, runtime, -1, receive_pop_size + 1])
-    # # pylab.show()
-    # # pylab.figure()
-    # if hidden_size != 0:
-    #     spikes_on = hidden_node_pop.getSpikes()
-    #     ax = pylab.subplot(1, 3, 2)#4, 1)
-    #     pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-    #     pylab.xlabel("Time (ms)")
-    #     pylab.ylabel("neuron ID")
-    #     pylab.axis([0, runtime, -1, receive_pop_size + 1])
-    # # pylab.show()
-    # # pylab.figure()
-    # spikes_on = output_pop.getSpikes()
-    # ax = pylab.subplot(1, 3, 3)#4, 1)
-    # pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-    # pylab.xlabel("Time (ms)")
-    # pylab.ylabel("neuron ID")
-    # pylab.axis([0, runtime, -1, output_size + 1])
+    pylab.figure()
+    spikes_on = receive_on_pop.getSpikes()
+    ax = pylab.subplot(1, 3, 1)#4, 1)
+    pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+    pylab.xlabel("Time (ms)")
+    pylab.ylabel("neuron ID")
+    pylab.axis([0, runtime, -1, receive_pop_size + 1])
     # pylab.show()
+    # pylab.figure()
+    if hidden_size != 0:
+        spikes_on = hidden_node_pop.getSpikes()
+        ax = pylab.subplot(1, 3, 2)#4, 1)
+        pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+        pylab.xlabel("Time (ms)")
+        pylab.ylabel("neuron ID")
+        pylab.axis([0, runtime, -1, receive_pop_size + 1])
+    # pylab.show()
+    # pylab.figure()
+    spikes_on = output_pop.getSpikes()
+    ax = pylab.subplot(1, 3, 3)#4, 1)
+    pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
+    pylab.xlabel("Time (ms)")
+    pylab.ylabel("neuron ID")
+    pylab.axis([0, runtime, -1, output_size + 1])
+    pylab.show()
 
     j = 0
     for score in scores:
@@ -520,8 +520,8 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 32
-y_factor = 32
+x_factor = 16
+y_factor = 16
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
@@ -530,9 +530,10 @@ output_size = 2
 # file = 'test hyper champion 25 - 16 f=-2.csv'
 # file = 'test champion 28 - 24 f=0.csv'
 # file = 'first brick slight mover 16.csv'
-# file = 'hyperbrick 16 f=7.csv'
-file = 'brick NEAT 32 f=10.csv'
-hyper = False
+file = 'hyperbrick 16 f=7.csv'
+# file = 'brick NEAT 32 f=10.csv'
+# file = 'hyper champion 39 - 32.csv'
+hyper = True
 
 if hyper == True:
     weight_max = 1

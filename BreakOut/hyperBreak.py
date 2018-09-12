@@ -232,7 +232,8 @@ def test_pop(pop, tracker):
     # Setup pyNN simulation
     p.setup(timestep=1.0)
     p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
-
+    # print "start"
+    # tracker.print_diff()
     print len(pop)
     #create the SpiNN nets
     for i in range(len(pop)):
@@ -302,6 +303,8 @@ def test_pop(pop, tracker):
             p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h_in), target='inhibitory')
         if len(o2o_in) != 0:
             p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o_in), target='inhibitory')
+    # print "after loop"
+    # tracker.print_diff()
 
 
 
@@ -401,8 +404,8 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 8
-y_factor = 8
+x_factor = 16
+y_factor = 16
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
