@@ -18,8 +18,13 @@ import math
 import csv
 import gc
 
-from peas.methods.neat import NEATPopulation, NEATGenotype
-from peas.networks.rnn import NeuralNetwork
+# file2 = peas/peas/methods/neat.py #peas.peas.methods.neat.py
+sys.path.append("/home/adampcloth/PycharmProjects/LivePoisson/BIMPC/peas/peas/methods")
+sys.path.insert(0, os.path.abspath("/home/adampcloth/PycharmProjects/LivePoisson/BIMPC/peas/peas/methods"))
+# sys.path[:0] = '/home/adampcloth/PycharmProjects/LivePoisson/BIMPC/peas/peas/methods'
+from neat import NEATPopulation, NEATGenotype
+# from peas.peas
+# from peas.networks.rnn import NeuralNetwork
 
 def get_scores(breakout_pop,simulator):
     b_vertex = breakout_pop._vertex
@@ -418,8 +423,8 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 8
-y_factor = 8
+x_factor = 16
+y_factor = 16
 
 weight = 0.1
 [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
