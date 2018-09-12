@@ -18,13 +18,8 @@ import math
 import csv
 import gc
 
-# file2 = peas/peas/methods/neat.py #peas.peas.methods.neat.py
-sys.path.append("/home/adampcloth/PycharmProjects/LivePoisson/BIMPC/peas/peas/methods")
-sys.path.insert(0, os.path.abspath("/home/adampcloth/PycharmProjects/LivePoisson/BIMPC/peas/peas/methods"))
-# sys.path[:0] = '/home/adampcloth/PycharmProjects/LivePoisson/BIMPC/peas/peas/methods'
-from neat import NEATPopulation, NEATGenotype
-# from peas.peas
-# from peas.networks.rnn import NeuralNetwork
+from peas.methods.neat import NEATPopulation, NEATGenotype
+from peas.networks.rnn import NeuralNetwork
 
 def get_scores(breakout_pop,simulator):
     b_vertex = breakout_pop._vertex
