@@ -422,30 +422,34 @@ p.end()
 # Configure substrate
 substrate = Substrate()
 print "adding input"
-substrate.add_nodes([(r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+substrate.add_nodes([(-1, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
                           for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'input')
 print "adding output"
-substrate.add_nodes([(r, theta) for r in np.linspace(0,0,1)
+substrate.add_nodes([(1, r, theta) for r in np.linspace(0,0,1)
                           for theta in np.linspace(-1, 1, 2)], 'output')
-print "adding hidden"
-substrate.add_nodes([(r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
-                          for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden')
+print "adding hidden1"
+substrate.add_nodes([(-0.33, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+                          for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden1')
+print "adding hidden2"
+substrate.add_nodes([(0.33, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+                          for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden2')
 
 print "adding connections"
 # substrate.add_connections('input', 'input',-1)
-substrate.add_connections('input', 'hidden', -1)
+substrate.add_connections('input', 'hidden1', -1)
 # substrate.add_connections('input', 'output',-1)
 # substrate.add_connections('hidden', 'input',-2)
 # substrate.add_connections('hidden', 'hidden', -2)
-substrate.add_connections('hidden', 'output',-2)
+substrate.add_connections('hidden1', 'hidden2',-2)
+substrate.add_connections('hidden2', 'output',-3)
 # substrate.add_connections('output', 'input',-3)
 # substrate.add_connections('output', 'hidden', -3)
 # substrate.add_connections('output', 'output',-3)
 
 print "setting up classes etc"
 geno_kwds = dict(feedforward=True,
-                 inputs=4,
-                 outputs=2,
+                 inputs=6,
+                 outputs=3,
                  weight_range=(-50.0, 50.0),
                  prob_add_conn=0.1,
                  prob_add_node=0.06,
