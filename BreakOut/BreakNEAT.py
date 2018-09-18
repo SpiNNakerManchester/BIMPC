@@ -418,8 +418,8 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 16
-y_factor = 16
+x_factor = 32
+y_factor = 32
 
 weight = 0.1
 [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
@@ -443,7 +443,7 @@ genotype = lambda: NEATGenotype(inputs=input_size,
                                 feedforward=False)
 
 # Create a population
-pop = NEATPopulation(genotype, popsize=100)
+pop = NEATPopulation(genotype, popsize=200)
 
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"
