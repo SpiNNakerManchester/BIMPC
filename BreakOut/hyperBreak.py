@@ -399,7 +399,7 @@ Y_RESOLUTION = 128
 UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
 
-weight_max = 1
+weight_max = 0.75
 delay = 2
 
 x_res = 160
@@ -458,7 +458,7 @@ geno_kwds = dict(feedforward=True,
 
 geno = lambda: NEATGenotype(**geno_kwds)
 
-pop = NEATPopulation(geno, popsize=100, target_species=8)
+pop = NEATPopulation(geno, popsize=200, target_species=15)
 
 developer = HyperNEATDeveloper(substrate=substrate,
                                add_deltas=False,
