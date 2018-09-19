@@ -1,5 +1,7 @@
 import spynnaker7.pyNN as p
 import time
+import gc
+import sys
 import copy
 import pylab
 import numpy as np
@@ -31,7 +33,8 @@ def function(tracker):
     breakout = p.Population(1, spinn_breakout.Breakout, {}, label="breakout")
     print "after populations"
     tracker.print_diff()
-    conn = p.FromListConnector(i2hcon)
+    conn = p.FromListConnector(i2hcon, tracker=tracker)
+    print "size = ", sys.getsizeof(conn)
     print "after conn"
     tracker.print_diff()
     a = p.Projection(input_pop, hidden_pop, p.AllToAllConnector(weights=0.5, delays=1.))
@@ -40,9 +43,9 @@ def function(tracker):
     a1 = p.Projection(input_pop, hidden_pop, conn)
     print "after i->h from list"
     tracker.print_diff()
-    a1 = p.Projection(input_pop, hidden_pop, p.FromListConnector(i2hcon))
-    print "after i->h from list 2"
-    tracker.print_diff()
+    # a1 = p.Projection(input_pop, hidden_pop, p.FromListConnector(i2hcon, tracker))
+    # print "after i->h from list 2"
+    # tracker.print_diff()
     # a2 = p.Projection(breakout, hidden_pop, p.AllToAllConnector(weights=0.5, delays=1.))
     # print "after b->h"
     # tracker.print_diff()
@@ -71,8 +74,17 @@ def function(tracker):
     p.end()
     print "after end"
     tracker.print_diff()
+
     del conn
     print "after del"
+    tracker.print_diff()
+    conn = None
+    print "after none"
+    tracker.print_diff()
+
+
+    gc.collect()
+    print "after collect test"
     tracker.print_diff()
 
 

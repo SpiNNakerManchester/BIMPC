@@ -82,7 +82,7 @@ def cm_to_fromlist(number_of_nodes, cm):
     hidden_size = number_of_nodes - output_size - input_size
     for i in range(number_of_nodes):
         for j in range(number_of_nodes):
-            connect_weight = cm[j][i] * (weight_max / 50.)
+            connect_weight = cm[j][i] * (weight_max / weight_scale)
             if connect_weight != 0 and not math.isnan(connect_weight):
                 if i < input_size:
                     if j < input_size:
@@ -148,7 +148,7 @@ def connect_genes_to_fromlist(number_of_nodes, connections, nodes):
 
     for conn in connections:
         c = connections[conn]
-        connect_weight = c[3] * (weight_max / 50.)
+        connect_weight = c[3] * (weight_max / weight_scale)
         if c[4] == True:
             if c[1] < input_size:
                 if c[2] < input_size:
@@ -215,6 +215,7 @@ def test_pop(pop, tracker):
     # gc.DEBUG_COLLECTABLE
     #test the whole population and return scores
     print "start"
+    print "factors: ", x_factor
     gen_stats(pop)
     save_champion()
     # tracker.print_diff()
@@ -380,7 +381,7 @@ def gen_stats(list_pop):
 def save_champion():
     iteration = len(pop.champions) - 1
     if iteration >= 0:
-        with open('champion {} - {}.csv'.format(iteration, x_factor), 'w') as file:
+        with open('NEAT champion {} - {}.csv'.format(iteration, x_factor), 'w') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
             for i in pop.champions[iteration].conn_genes:
                 writer.writerow(pop.champions[iteration].conn_genes[i])
@@ -389,7 +390,7 @@ def save_champion():
             for i in pop.champions[iteration].stats:
                 writer.writerow(["fitness", pop.champions[iteration].stats[i]])
             # writer.writerow("\n")
-        with open('champions {}.csv'.format(x_factor), 'a') as file:
+        with open('NEAT champions {}.csv'.format(x_factor), 'a') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
             for i in pop.champions[iteration].conn_genes:
                 writer.writerow(pop.champions[iteration].conn_genes[i])
@@ -413,7 +414,8 @@ UDP_PORT2 = UDP_PORT1 + 1
 
 runtime = 501000
 
-weight_max = 0.5
+weight_max = 1.0
+weight_scale = 1.0
 delay = 2
 
 x_res = 160
@@ -438,7 +440,9 @@ genotype = lambda: NEATGenotype(inputs=input_size,
                                 outputs=output_size,
                                 prob_add_node=0.1,
                                 # prob_add_conn=0.4,
-                                weight_range=(-50, 50),
+                                weight_range=(-0.1, 0.1),
+                                initial_weight_stdev=0.015,
+                                stdev_mutate_weight=0.02,
                                 types=['excitatory', 'inhibitory'],
                                 feedforward=False)
 

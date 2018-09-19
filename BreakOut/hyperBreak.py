@@ -95,7 +95,7 @@ def cm_to_fromlist(number_of_nodes, cm):
     hidden_size = number_of_nodes - output_size - input_size
     for i in range(number_of_nodes):
         for j in range(number_of_nodes):
-            connect_weight = cm[j][i] * (weight_max / 50.)
+            connect_weight = cm[j][i] * (weight_max / weight_scale)
             if connect_weight != 0 and not math.isnan(connect_weight):
                 if i < input_size:
                     if j < input_size:
@@ -173,7 +173,7 @@ def connect_genes_to_fromlist(number_of_nodes, indiviudal):
 
     for connections in indiviudal:
         c = indiviudal[connections]
-        connect_weight = c[3] * (weight_max / 50.)
+        connect_weight = c[3] * (weight_max / weight_scale)
         if c[4] == True:
             if c[1] < input_size:
                 if c[2] < input_size:
@@ -211,6 +211,7 @@ def connect_genes_to_fromlist(number_of_nodes, indiviudal):
 def test_pop(pop, tracker):
     #test the whole population and return scores
 
+    print "factors: ", x_factor
     gen_stats(pop)
     save_champion()
 
@@ -399,13 +400,18 @@ Y_RESOLUTION = 128
 UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
 
+<<<<<<< HEAD
 weight_max = 0.5
+=======
+weight_max = 1.0
+weight_scale = 1.0
+>>>>>>> 70beac462055a4d03c55cecdb078c87fc266568e
 delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 16
-y_factor = 16
+x_factor = 32
+y_factor = 32
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
@@ -469,12 +475,18 @@ geno_kwds = dict(feedforward=True,
 
 geno = lambda: NEATGenotype(**geno_kwds)
 
+<<<<<<< HEAD
 pop = NEATPopulation(geno, popsize=200, target_species=15)
+=======
+pop = NEATPopulation(geno, popsize=200, target_species=12)
+>>>>>>> 70beac462055a4d03c55cecdb078c87fc266568e
 
 developer = HyperNEATDeveloper(substrate=substrate,
                                add_deltas=False,
                                sandwich=False,
                                feedforward=False,
+                               weight_range=0.09,
+                               min_weight=0.0001,
                                node_type=['excitatory', 'inhibitory'])
 
 
