@@ -420,8 +420,8 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 32
-y_factor = 32
+x_factor = 16
+y_factor = 16
 
 weight = 0.1
 [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
