@@ -215,8 +215,9 @@ def test_pop(pop, tracker):
     # gc.DEBUG_STATS
     # gc.DEBUG_COLLECTABLE
     #test the whole population and return scores
+    global all_fails
     print "start"
-    print "factors: ", x_factor
+    print "factors: ", x_factor, "fails: ", all_fails
     gen_stats(pop)
     save_champion()
     # tracker.print_diff()
@@ -335,8 +336,9 @@ def test_pop(pop, tracker):
             break
         except:
             traceback.print_exc()
+            all_fails += 1
             try_except += 1
-            print "failed to run on attempt ", try_except
+            print "failed to run on attempt ", try_except,". total fails: ", all_fails
 
 
     print "reached here 2"
@@ -378,7 +380,7 @@ def test_pop(pop, tracker):
     for score in scores:
         print j, score
         j += 1
-    print "factors: ", x_factor
+    print "factors: ", x_factor, "fails: ", all_fails
     # End simulation
     p.end()
     # gc.DEBUG_STATS
@@ -425,6 +427,7 @@ UDP_PORT2 = UDP_PORT1 + 1
 
 runtime = 501000
 try_attempts = 5
+all_fails = 0
 
 weight_max = 1.0
 weight_scale = 1.0
