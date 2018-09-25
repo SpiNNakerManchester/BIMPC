@@ -16,6 +16,7 @@ import socket
 import numpy as np
 import math
 import csv
+import traceback
 import gc
 
 from peas.methods.neat import NEATPopulation, NEATGenotype
@@ -326,7 +327,17 @@ def test_pop(pop, tracker):
     # tracker.print_diff()
 
     simulator = get_simulator()
-    p.run(runtime)
+    try_except = 0
+    while try_except < try_attempts:
+        try:
+            p.run(runtime)
+            try_except = try_attempts
+            break
+        except:
+            traceback.print_exc()
+            try_except += 1
+            print "failed to run on attempt ", try_except
+
 
     print "reached here 2"
 
@@ -413,6 +424,7 @@ UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
 
 runtime = 501000
+try_attempts = 5
 
 weight_max = 1.0
 weight_scale = 1.0

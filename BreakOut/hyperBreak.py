@@ -17,6 +17,7 @@ import socket
 import numpy as np
 import csv
 import math
+import traceback
 
 from peas.methods.neat import NEATPopulation, NEATGenotype
 from peas.networks.rnn import NeuralNetwork
@@ -311,11 +312,18 @@ def test_pop(pop, tracker):
 
     print "reached here 1"
 
-    runtime = 501000
-
     simulator = get_simulator()
 
-    p.run(runtime)
+    try_except = 0
+    while try_except < try_attempts:
+        try:
+            p.run(runtime)
+            try_except = try_attempts
+            break
+        except:
+            traceback.print_exc()
+            try_except += 1
+            print "failed to run on attempt ", try_except
 
     print "reached here 2"
 
@@ -399,6 +407,10 @@ Y_RESOLUTION = 128
 # UDP port to read spikes from
 UDP_PORT1 = 17887
 UDP_PORT2 = UDP_PORT1 + 1
+
+runtime = 501000
+try_attempts = 5
+
 
 weight_max = 1.0
 weight_scale = 1.0
