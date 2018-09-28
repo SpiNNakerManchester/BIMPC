@@ -223,100 +223,102 @@ def test_pop(pop, tracker):
     #     networks.append(NeuralNetwork(individual))
 
     receive_pop_size = input_size
-    breakout_pops = []
-    receive_on_pops = []
-    hidden_node_pops = []
-    hidden_count = 0
-    output_pops = []
     # weight = 0.1
     # [Connections_on, Connections_off] = subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight,
     #                                                          row_col_to_input_breakout)
 
-    # Setup pyNN simulation
-    p.setup(timestep=1.0)
-    p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
     # print "start"
     # tracker.print_diff()
     print len(pop)
+    phenotype = []
     #create the SpiNN nets
+    try_except = 0
     for i in range(len(pop)):
         print "converting geno->pheno->spino ", i
-        phenotype = developer.convert(pop[i])
-
-        number_of_nodes = len(phenotype.node_types)
-        hidden_size = number_of_nodes - output_size - input_size
-
-        # [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = connect_genes_to_fromlist(number_of_nodes, phenotype.conn_genes)
-
-        i2i_ex, i2h_ex, i2o_ex, h2i_ex, h2h_ex, h2o_ex, o2i_ex, o2h_ex, o2o_ex, i2i_in, i2h_in, i2o_in, h2i_in, h2h_in, \
-        h2o_in, o2i_in, o2h_in, o2o_in = cm_to_fromlist(number_of_nodes, phenotype.cm)
-
-        # Create breakout population
-        breakout_pops.append(p.Population(1, spinn_breakout.Breakout, {}, label="breakout {}".format(i)))
-
-        # Create input population and connect break out to it
-        receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop {}".format(i)))
-        p.Projection(breakout_pops[i], receive_on_pops[i], breakout_connections)
-
-        # Create output population and remaining population
-        output_pops.append(p.Population(output_size, p.IF_cond_exp, {}, label="output_pop {}".format(i)))
-        p.Projection(output_pops[i], breakout_pops[i], p.AllToAllConnector())
-
-        if hidden_size != 0:
-            hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop {}".format(i)))
-            hidden_count += 1
-        #     hidden_node_pops[hidden_count-1].record()
-        # receive_on_pops[i].record()
-        # output_pops[i].record()
-
-        # Create the remaining nodes from the connection matrix and add them up
-        if len(i2i_ex) != 0:
-            p.Projection(receive_on_pops[i], receive_on_pops[i], p.FromListConnector(i2i_ex), target='excitatory')
-        if len(i2h_ex) != 0:
-            p.Projection(receive_on_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(i2h_ex), target='excitatory')
-        if len(i2o_ex) != 0:
-            p.Projection(receive_on_pops[i], output_pops[i], p.FromListConnector(i2o_ex), target='excitatory')
-        if len(h2i_ex) != 0:
-            p.Projection(hidden_node_pops[hidden_count-1], receive_on_pops[i], p.FromListConnector(h2i_ex), target='excitatory')
-        if len(h2h_ex) != 0:
-            p.Projection(hidden_node_pops[hidden_count-1], hidden_node_pops[hidden_count-1], p.FromListConnector(h2h_ex), target='excitatory')
-        if len(h2o_ex) != 0:
-            p.Projection(hidden_node_pops[hidden_count-1], output_pops[i], p.FromListConnector(h2o_ex), target='excitatory')
-        if len(o2i_ex) != 0:
-            p.Projection(output_pops[i], receive_on_pops[i], p.FromListConnector(o2i_ex), target='excitatory')
-        if len(o2h_ex) != 0:
-            p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h_ex), target='excitatory')
-        if len(o2o_ex) != 0:
-            p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o_ex), target='excitatory')
-        if len(i2i_in) != 0:
-            p.Projection(receive_on_pops[i], receive_on_pops[i], p.FromListConnector(i2i_in), target='inhibitory')
-        if len(i2h_in) != 0:
-            p.Projection(receive_on_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(i2h_in), target='inhibitory')
-        if len(i2o_in) != 0:
-            p.Projection(receive_on_pops[i], output_pops[i], p.FromListConnector(i2o_in), target='inhibitory')
-        if len(h2i_in) != 0:
-            p.Projection(hidden_node_pops[hidden_count-1], receive_on_pops[i], p.FromListConnector(h2i_in), target='inhibitory')
-        if len(h2h_in) != 0:
-            p.Projection(hidden_node_pops[hidden_count-1], hidden_node_pops[hidden_count-1], p.FromListConnector(h2h_in), target='inhibitory')
-        if len(h2o_in) != 0:
-            p.Projection(hidden_node_pops[hidden_count-1], output_pops[i], p.FromListConnector(h2o_in), target='inhibitory')
-        if len(o2i_in) != 0:
-            p.Projection(output_pops[i], receive_on_pops[i], p.FromListConnector(o2i_in), target='inhibitory')
-        if len(o2h_in) != 0:
-            p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h_in), target='inhibitory')
-        if len(o2o_in) != 0:
-            p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o_in), target='inhibitory')
-    # print "after loop"
-    # tracker.print_diff()
-
-
-
-    print "reached here 1"
-
-    simulator = get_simulator()
-
-    try_except = 0
+        phenotype.append(developer.convert(pop[i]))
     while try_except < try_attempts:
+        breakout_pops = []
+        receive_on_pops = []
+        hidden_node_pops = []
+        hidden_count = 0
+        output_pops = []
+        # Setup pyNN simulation
+        p.setup(timestep=1.0)
+        p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
+        for i in range(len(pop)):
+
+            number_of_nodes = len(phenotype[i].node_types)
+            hidden_size = number_of_nodes - output_size - input_size
+
+            # [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = connect_genes_to_fromlist(number_of_nodes, phenotype.conn_genes)
+
+            i2i_ex, i2h_ex, i2o_ex, h2i_ex, h2h_ex, h2o_ex, o2i_ex, o2h_ex, o2o_ex, i2i_in, i2h_in, i2o_in, h2i_in, h2h_in, \
+            h2o_in, o2i_in, o2h_in, o2o_in = cm_to_fromlist(number_of_nodes, phenotype[i].cm)
+
+            # Create breakout population
+            breakout_pops.append(p.Population(1, spinn_breakout.Breakout, {}, label="breakout {}".format(i)))
+
+            # Create input population and connect break out to it
+            receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop {}".format(i)))
+            p.Projection(breakout_pops[i], receive_on_pops[i], breakout_connections)
+
+            # Create output population and remaining population
+            output_pops.append(p.Population(output_size, p.IF_cond_exp, {}, label="output_pop {}".format(i)))
+            p.Projection(output_pops[i], breakout_pops[i], p.AllToAllConnector())
+
+            if hidden_size != 0:
+                hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp, {}, label="hidden_pop {}".format(i)))
+                hidden_count += 1
+            #     hidden_node_pops[hidden_count-1].record()
+            # receive_on_pops[i].record()
+            # output_pops[i].record()
+
+            # Create the remaining nodes from the connection matrix and add them up
+            if len(i2i_ex) != 0:
+                p.Projection(receive_on_pops[i], receive_on_pops[i], p.FromListConnector(i2i_ex), target='excitatory')
+            if len(i2h_ex) != 0:
+                p.Projection(receive_on_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(i2h_ex), target='excitatory')
+            if len(i2o_ex) != 0:
+                p.Projection(receive_on_pops[i], output_pops[i], p.FromListConnector(i2o_ex), target='excitatory')
+            if len(h2i_ex) != 0:
+                p.Projection(hidden_node_pops[hidden_count-1], receive_on_pops[i], p.FromListConnector(h2i_ex), target='excitatory')
+            if len(h2h_ex) != 0:
+                p.Projection(hidden_node_pops[hidden_count-1], hidden_node_pops[hidden_count-1], p.FromListConnector(h2h_ex), target='excitatory')
+            if len(h2o_ex) != 0:
+                p.Projection(hidden_node_pops[hidden_count-1], output_pops[i], p.FromListConnector(h2o_ex), target='excitatory')
+            if len(o2i_ex) != 0:
+                p.Projection(output_pops[i], receive_on_pops[i], p.FromListConnector(o2i_ex), target='excitatory')
+            if len(o2h_ex) != 0:
+                p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h_ex), target='excitatory')
+            if len(o2o_ex) != 0:
+                p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o_ex), target='excitatory')
+            if len(i2i_in) != 0:
+                p.Projection(receive_on_pops[i], receive_on_pops[i], p.FromListConnector(i2i_in), target='inhibitory')
+            if len(i2h_in) != 0:
+                p.Projection(receive_on_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(i2h_in), target='inhibitory')
+            if len(i2o_in) != 0:
+                p.Projection(receive_on_pops[i], output_pops[i], p.FromListConnector(i2o_in), target='inhibitory')
+            if len(h2i_in) != 0:
+                p.Projection(hidden_node_pops[hidden_count-1], receive_on_pops[i], p.FromListConnector(h2i_in), target='inhibitory')
+            if len(h2h_in) != 0:
+                p.Projection(hidden_node_pops[hidden_count-1], hidden_node_pops[hidden_count-1], p.FromListConnector(h2h_in), target='inhibitory')
+            if len(h2o_in) != 0:
+                p.Projection(hidden_node_pops[hidden_count-1], output_pops[i], p.FromListConnector(h2o_in), target='inhibitory')
+            if len(o2i_in) != 0:
+                p.Projection(output_pops[i], receive_on_pops[i], p.FromListConnector(o2i_in), target='inhibitory')
+            if len(o2h_in) != 0:
+                p.Projection(output_pops[i], hidden_node_pops[hidden_count-1], p.FromListConnector(o2h_in), target='inhibitory')
+            if len(o2o_in) != 0:
+                p.Projection(output_pops[i], output_pops[i], p.FromListConnector(o2o_in), target='inhibitory')
+        # print "after loop"
+        # tracker.print_diff()
+
+
+
+        print "reached here 1"
+
+        simulator = get_simulator()
+
         try:
             p.run(runtime)
             try_except = try_attempts
@@ -325,7 +327,8 @@ def test_pop(pop, tracker):
             traceback.print_exc()
             all_fails += 1
             try_except += 1
-            print "failed to run on attempt ", try_except,". total fails: ", all_fails
+            print "failed to run on attempt ", try_except, ". total fails: ", all_fails, "\n"
+            p.end()
 
     print "reached here 2"
 
@@ -420,8 +423,10 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 8
-y_factor = 8
+x_factor = 16
+y_factor = 16
+layers = 1
+fully_connected = False
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
@@ -437,51 +442,76 @@ p.end()
 
 # Configure substrate
 substrate = Substrate()
-# print "adding input"
-# substrate.add_nodes([(-1, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
-#                           for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'input')
-# print "adding output"
-# substrate.add_nodes([(1, r, theta) for r in np.linspace(0,0,1)
-#                           for theta in np.linspace(-1, 1, 2)], 'output')
-print "adding input"
-substrate.add_nodes([(r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
-                          for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'input')
-print "adding output"
-substrate.add_nodes([(r, theta) for r in np.linspace(0,0,1)
-                          for theta in np.linspace(-1, 1, 2)], 'output')
-print "adding hidden"
-substrate.add_nodes([(r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
-                          for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden')
-# print "adding hidden1"
-# substrate.add_nodes([(-0.33, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
-#                           for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden1')
-# print "adding hidden2"
-# substrate.add_nodes([(0.33, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
-#                           for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden2')
+
+if layers == 1:
+    print "adding input"
+    substrate.add_nodes([(r, theta) for r in np.linspace(-1, 0, int(x_res/x_factor))
+                              for theta in np.linspace(-1, 0, int(y_res/y_factor))], 'input')
+    print "adding output"
+    substrate.add_nodes([(r, theta) for r in np.linspace(0, 0, 1)
+                              for theta in np.linspace(-1, 1, 2)], 'output')
+    print "adding hidden"
+    substrate.add_nodes([(r, theta) for r in np.linspace(0, 1, int(x_res/x_factor))
+                              for theta in np.linspace(0, 1, int(y_res/y_factor))], 'hidden')
+
+    substrate.add_connections('input', 'hidden', -1)
+    substrate.add_connections('hidden', 'output', -2)
+    if fully_connected == True:
+        substrate.add_connections('input', 'input',-1)
+        substrate.add_connections('input', 'output',-1)
+        substrate.add_connections('hidden', 'input',-2)
+        substrate.add_connections('hidden', 'hidden', -2)
+        substrate.add_connections('output', 'input',-3)
+        substrate.add_connections('output', 'hidden', -3)
+        substrate.add_connections('output', 'output',-3)
+        print "setting up classes etc"
+        geno_kwds = dict(feedforward=True,
+                         inputs=4,
+                         outputs=3,
+                         weight_range=(-50.0, 50.0),
+                         prob_add_conn=0.1,
+                         prob_add_node=0.06,
+                         bias_as_node=False,
+                         types=['sin', 'bound', 'linear', 'gauss', 'sigmoid', 'abs'])
+    else:
+        print "setting up classes etc"
+        geno_kwds = dict(feedforward=True,
+                         inputs=4,
+                         outputs=2,
+                         weight_range=(-50.0, 50.0),
+                         prob_add_conn=0.1,
+                         prob_add_node=0.06,
+                         bias_as_node=False,
+                         types=['sin', 'bound', 'linear', 'gauss', 'sigmoid', 'abs'])
+else:
+    print "adding input"
+    substrate.add_nodes([(-1, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+                              for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'input')
+    print "adding output"
+    substrate.add_nodes([(1, r, theta) for r in np.linspace(0,0,1)
+                              for theta in np.linspace(-1, 1, 2)], 'output')
+    print "adding hidden1"
+    substrate.add_nodes([(-0.33, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+                              for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden1')
+    print "adding hidden2"
+    substrate.add_nodes([(0.33, r, theta) for r in np.linspace(-1,1,int(x_res/x_factor))
+                              for theta in np.linspace(-1, 1, int(y_res/y_factor))], 'hidden2')
+
+    substrate.add_connections('input', 'hidden1', -1)
+    substrate.add_connections('hidden1', 'hidden2',-2)
+    substrate.add_connections('hidden2', 'output',-3)
 
 print "adding connections"
 # substrate.add_connections('input', 'input',-1)
 # substrate.add_connections('input', 'hidden1', -1)
-substrate.add_connections('input', 'hidden', -1)
 # substrate.add_connections('input', 'output',-1)
 # substrate.add_connections('hidden', 'input',-2)
 # substrate.add_connections('hidden', 'hidden', -2)
 # substrate.add_connections('hidden1', 'hidden2',-2)
 # substrate.add_connections('hidden2', 'output',-3)
-substrate.add_connections('hidden', 'output',-2)
 # substrate.add_connections('output', 'input',-3)
 # substrate.add_connections('output', 'hidden', -3)
 # substrate.add_connections('output', 'output',-3)
-
-print "setting up classes etc"
-geno_kwds = dict(feedforward=True,
-                 inputs=4,
-                 outputs=2,
-                 weight_range=(-50.0, 50.0),
-                 prob_add_conn=0.1,
-                 prob_add_node=0.06,
-                 bias_as_node=False,
-                 types=['sin', 'bound', 'linear', 'gauss', 'sigmoid', 'abs'])
 
 geno = lambda: NEATGenotype(**geno_kwds)
 pop = NEATPopulation(geno, popsize=200, target_species=15)
