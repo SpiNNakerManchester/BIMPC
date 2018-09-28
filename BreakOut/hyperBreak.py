@@ -213,7 +213,7 @@ def test_pop(pop, tracker):
     #test the whole population and return scores
     global all_fails
 
-    print "factors: ", x_factor, "fails: ", all_fails
+    print "factors: ", x_factor, "layers: ", layers, "recurse: ", fully_connected, "fails: ", all_fails
     gen_stats(pop)
     save_champion()
 
