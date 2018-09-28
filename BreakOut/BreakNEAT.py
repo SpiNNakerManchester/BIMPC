@@ -395,7 +395,7 @@ def gen_stats(list_pop):
 def save_champion():
     iteration = len(pop.champions) - 1
     if iteration >= 0:
-        with open('NEAT champion {} - {}.csv'.format(iteration, x_factor), 'w') as file:
+        with open('NEAT try champion {} - {}.csv'.format(iteration, x_factor), 'w') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
             for i in pop.champions[iteration].conn_genes:
                 writer.writerow(pop.champions[iteration].conn_genes[i])
@@ -404,7 +404,7 @@ def save_champion():
             for i in pop.champions[iteration].stats:
                 writer.writerow(["fitness", pop.champions[iteration].stats[i]])
             # writer.writerow("\n")
-        with open('NEAT champions {}.csv'.format(x_factor), 'a') as file:
+        with open('NEAT try champions {}.csv'.format(x_factor), 'a') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
             for i in pop.champions[iteration].conn_genes:
                 writer.writerow(pop.champions[iteration].conn_genes[i])

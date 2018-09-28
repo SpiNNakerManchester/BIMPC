@@ -382,7 +382,7 @@ def gen_stats(list_pop):
 def save_champion():
     iteration = len(pop.champions) - 1
     if iteration >= 0:
-        with open('hyperNEAT champion {} - {}.csv'.format(iteration, x_factor), 'w') as file:
+        with open('hyperNEAT champion {} - {} layers = {} recurse = {}.csv'.format(iteration, x_factor, layers, fully_connected), 'w') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
             for i in pop.champions[iteration].conn_genes:
                 writer.writerow(pop.champions[iteration].conn_genes[i])
@@ -391,7 +391,7 @@ def save_champion():
             for i in pop.champions[iteration].stats:
                 writer.writerow(["fitness", pop.champions[iteration].stats[i]])
             # writer.writerow("\n")
-        with open('hyperNEAT champions {}.csv'.format(x_factor), 'a') as file:
+        with open('hyperNEAT champions {} layers = {} recurse = {}.csv'.format(x_factor, layers, fully_connected), 'a') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
             for i in pop.champions[iteration].conn_genes:
                 writer.writerow(pop.champions[iteration].conn_genes[i])
