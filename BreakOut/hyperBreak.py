@@ -500,6 +500,15 @@ else:
     substrate.add_connections('input', 'hidden1', -1)
     substrate.add_connections('hidden1', 'hidden2',-2)
     substrate.add_connections('hidden2', 'output',-3)
+    print "setting up classes etc"
+    geno_kwds = dict(feedforward=True,
+                     inputs=6,
+                     outputs=3,
+                     weight_range=(-50.0, 50.0),
+                     prob_add_conn=0.1,
+                     prob_add_node=0.06,
+                     bias_as_node=False,
+                     types=['sin', 'bound', 'linear', 'gauss', 'sigmoid', 'abs'])
 
 print "adding connections"
 # substrate.add_connections('input', 'input',-1)
