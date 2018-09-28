@@ -339,7 +339,7 @@ def test_pop(pop, tracker):
             all_fails += 1
             try_except += 1
             print "failed to run on attempt ", try_except, ". total fails: ", all_fails, "\n"
-            p.end()
+            # p.end()
 
 
     print "reached here 2"
