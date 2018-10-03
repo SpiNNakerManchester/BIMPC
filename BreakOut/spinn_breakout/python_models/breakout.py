@@ -109,6 +109,17 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
     # **HACK** for Projection to connect a synapse type is required
     synapse_type = BreakoutSynapseType()
 
+    # parameters expected by PyNN
+    default_parameters = {
+        'width': WIDTH_PIXELS,
+        'height': HEIGHT_PIXELS,
+        'colour_bits': COLOUR_BITS,
+        'constraints': None,
+        'label': "Breakout",
+        'incoming_spike_buffer_size': None,
+        'duration': MAX_SIM_DURATION
+    }
+
     def __init__(self, n_neurons, width=WIDTH_PIXELS, height=HEIGHT_PIXELS,
                  colour_bits=COLOUR_BITS, constraints=None,
                  label="Breakout", incoming_spike_buffer_size=None,
