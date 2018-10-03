@@ -1,4 +1,4 @@
-import spynnaker7.pyNN as p
+import spynnaker8 as p
 # from spynnaker_external_devices_plugin.pyNN.connections.\
 #     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
 from spynnaker.pyNN.connections.\
@@ -257,7 +257,7 @@ def test_pop(pop, tracker):
             # [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = cm_to_fromlist(number_of_nodes, networks[i].cm)
 
             # Create breakout population
-            breakout_pops.append(p.Population(1, spinn_breakout.Breakout, {}, label="breakout {}".format(i)))
+            breakout_pops.append(p.Population(1, p.Breakout(), label="breakout {}".format(i)))
             # print "after creating breakout"
             # tracker.print_diff()
 
@@ -463,7 +463,9 @@ genotype = lambda: NEATGenotype(inputs=input_size,
                                 feedforward=False)
 
 # Create a population
-pop = NEATPopulation(genotype, popsize=200)
+pop = NEATPopulation(genotype, popsize=200,
+                     stagnation_age=30,
+                     old_age=75)
 
 # Run the evolution, tell it to use the task as an evaluator
 print "beginning epoch"

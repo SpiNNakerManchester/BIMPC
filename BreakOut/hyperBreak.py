@@ -523,7 +523,7 @@ print "adding connections"
 # substrate.add_connections('output', 'output',-3)
 
 geno = lambda: NEATGenotype(**geno_kwds)
-pop = NEATPopulation(geno, popsize=200, target_species=15)
+pop = NEATPopulation(geno, popsize=200, target_species=15, stagnation_age=30, old_age=75)
 
 developer = HyperNEATDeveloper(substrate=substrate,
                                add_deltas=False,
