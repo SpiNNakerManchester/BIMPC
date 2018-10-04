@@ -26,8 +26,25 @@
 //----------------------------------------------------------------------------
 // **TODO** many of these magic numbers should be passed from Python
 // Game dimension constants
-#define GAME_WIDTH  160
-#define GAME_HEIGHT 128
+#define GAME_WIDTH_MAX  160
+#define GAME_HEIGHT_MAX 128
+
+//----------------------------------------------------------------------------
+// Enumerations
+//----------------------------------------------------------------------------
+//typedef enum
+//{
+//  REGION_SYSTEM,
+//  REGION_BREAKOUT,
+//  REGION_RECORDING,
+//  REGION_PARAM,
+//} region_t;
+
+// Read param region
+//address_t address = data_specification_get_data_address();
+//address_t param_region = data_specification_get_region(REGION_PARAM, address);
+//GAME_WIDTH_MAX = param_region[0]
+//GAME_HEIGHT_MAX = param_region[1]
 
 #define BRICK_WIDTH  10
 #define BRICK_HEIGHT 6
@@ -63,6 +80,7 @@ typedef enum
   REGION_SYSTEM,
   REGION_BREAKOUT,
   REGION_RECORDING,
+  REGION_PARAM,
 } region_t;
 
 typedef enum
@@ -103,10 +121,12 @@ static uint32_t infinite_run;
 static uint32_t _time;
 uint32_t pkt_count;
 
+int GAME_WIDTH = 160;
+int GAME_HEIGHT = 128;
 
 // initial ball coordinates in fixed-point
-static int x = (GAME_WIDTH / 4) * FACT;
-static int y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
+static int x; //= (GAME_WIDTH / 4) * FACT;
+static int y; //= (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
 
 static int current_number_of_bricks;
 
@@ -127,7 +147,7 @@ static int x_bat   = 40;
 static int bat_len = 16;
 
 // frame buffer: 160 x 128 x 4 bits: [hard/soft, R, G, B]
-static int frame_buff[GAME_WIDTH / 8][GAME_HEIGHT];
+static int frame_buff[GAME_WIDTH_MAX / 8][GAME_HEIGHT_MAX];
 
 // control pause when ball out of play
 static int out_of_play = 0;
@@ -153,7 +173,7 @@ uint32_t score_change_count=0;
 int32_t current_score = 0;
 
 //ratio used in randomising initial x coordinate
-static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH);
+static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH_MAX);
 
 
 //----------------------------------------------------------------------------
@@ -489,53 +509,64 @@ static void update_frame ()
 
 static bool initialize(uint32_t *timer_period)
 {
-  log_info("Initialise breakout: started");
+    log_info("Initialise breakout: started");
 
-  // Get the address this core's DTCM data starts at from SRAM
-  address_t address = data_specification_get_data_address();
+    // Get the address this core's DTCM data starts at from SRAM
+    address_t address = data_specification_get_data_address();
 
-  // Read the header
-  if (!data_specification_read_header(address))
-  {
-      return false;
-  }
-/*
+    // Read the header
+    if (!data_specification_read_header(address))
+    {
+        return false;
+    }
+    /*
     simulation_initialise(
         address_t address, uint32_t expected_app_magic_number,
         uint32_t* timer_period, uint32_t *simulation_ticks_pointer,
         uint32_t *infinite_run_pointer, int sdp_packet_callback_priority,
         int dma_transfer_done_callback_priority)
-*/
-  // Get the timing details and set up thse simulation interface
-  if (!simulation_initialise(data_specification_get_region(REGION_SYSTEM, address),
+    */
+    // Get the timing details and set up thse simulation interface
+    if (!simulation_initialise(data_specification_get_region(REGION_SYSTEM, address),
     APPLICATION_NAME_HASH, timer_period, &simulation_ticks,
     &infinite_run, 1, NULL))
-  {
-      return false;
-  }
-  log_info("simulation time = %u", simulation_ticks);
+    {
+        return false;
+    }
+    log_info("simulation time = %u", simulation_ticks);
 
 
-  // Read breakout region
-  address_t breakout_region = data_specification_get_region(REGION_BREAKOUT, address);
-  key = breakout_region[0];
-  log_info("\tKey=%08x", key);
-  log_info("\tTimer period=%d", *timer_period);
+    // Read breakout region
+    address_t breakout_region = data_specification_get_region(REGION_BREAKOUT, address);
+    key = breakout_region[0];
+    log_info("\tKey=%08x", key);
+    log_info("\tTimer period=%d", *timer_period);
 
     //get recording region
-   address_t recording_address = data_specification_get_region(
+    address_t recording_address = data_specification_get_region(
                                        REGION_RECORDING,address);
-   // Setup recording
-   uint32_t recording_flags = 0;
-   if (!recording_initialize(recording_address, &recording_flags))
-   {
-       rt_error(RTE_SWERR);
-       return false;
-   }
 
-  log_info("Initialise: completed successfully");
+    // Read param region
+    address_t param_region = data_specification_get_region(REGION_PARAM, address);
+    GAME_WIDTH = param_region[0];
+    GAME_HEIGHT = param_region[1];
 
-  return true;
+    x = (GAME_WIDTH / 4) * FACT;
+    y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
+//    frame_buff[GAME_WIDTH / 8][GAME_HEIGHT];
+    x_ratio=UINT32_MAX/(GAME_WIDTH);
+
+    // Setup recording
+    uint32_t recording_flags = 0;
+    if (!recording_initialize(recording_address, &recording_flags))
+    {
+        rt_error(RTE_SWERR);
+        return false;
+    }
+
+    log_info("Initialise: completed successfully");
+
+    return true;
 }
 
 //----------------------------------------------------------------------------
@@ -788,35 +819,39 @@ void rte_handler (uint code)
 //----------------------------------------------------------------------------
 void c_main(void)
 {
-  // Load DTCM data
-  uint32_t timer_period;
-  if (!initialize(&timer_period))
-  {
-    log_error("Error in initialisation - exiting!");
-    rt_error(RTE_SWERR);
-    return;
-  }
+    // Load DTCM data
+    uint32_t timer_period;
+    if (!initialize(&timer_period))
+    {
+        log_error("Error in initialisation - exiting!");
+        rt_error(RTE_SWERR);
+        return;
+    }
 
-  init_frame();
-  keystate = 0; // IDLE
-  tick_in_frame = 0;
-  pkt_count = 0;
 
-  // Set timer tick (in microseconds)
-  log_info("setting timer tick callback for %d microseconds",
+    // frame buffer: 160 x 128 x 4 bits: [hard/soft, R, G, B]
+//    static int frame_buff[GAME_WIDTH / 8][GAME_HEIGHT];
+
+    init_frame();
+    keystate = 0; // IDLE
+    tick_in_frame = 0;
+    pkt_count = 0;
+
+    // Set timer tick (in microseconds)
+    log_info("setting timer tick callback for %d microseconds",
               timer_period);
-  spin1_set_timer_tick(timer_period);
-  log_info("bricks %x", &bricks);
+    spin1_set_timer_tick(timer_period);
+    log_info("bricks %x", &bricks);
 
-  log_info("simulation_ticks %d",simulation_ticks);
+    log_info("simulation_ticks %d",simulation_ticks);
 
-  // Register callback
-  spin1_callback_on(TIMER_TICK, timer_callback, 2);
-  spin1_callback_on(MC_PACKET_RECEIVED, mc_packet_received_callback, -1);
+    // Register callback
+    spin1_callback_on(TIMER_TICK, timer_callback, 2);
+    spin1_callback_on(MC_PACKET_RECEIVED, mc_packet_received_callback, -1);
 
-  _time = UINT32_MAX;
+    _time = UINT32_MAX;
 
-  simulation_run();
+    simulation_run();
 
 
 

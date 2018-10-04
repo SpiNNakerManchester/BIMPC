@@ -56,6 +56,8 @@ from breakout_machine_vertex import BreakoutMachineVertex
 
 import numpy
 
+from data_specification.enums.data_type import DataType
+
 # ----------------------------------------------------------------------------
 # Breakout
 # ----------------------------------------------------------------------------
@@ -101,6 +103,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         pass
 
     BREAKOUT_REGION_BYTES = 4
+    PARAM_REGION_BYTES = 10
     WIDTH_PIXELS = 160
     HEIGHT_PIXELS = 128
     COLOUR_BITS = 2
@@ -136,6 +139,12 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
 
         self._n_neurons = (1 << (self._width_bits + self._height_bits +
                                  self._colour_bits + 1))
+
+        print "#width =", self._width
+        print "#width bits =", self._width_bits
+        print "#height =", self._height
+        print "#height bits =", self._height_bits
+        print "#no_neurons =", self._n_neurons
 
         #used to define size of recording region
         self._recording_size = int((simulation_duration_ms/10000.) * 4)
@@ -226,12 +235,15 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
             label='setup')
         spec.reserve_memory_region(
             region=BreakoutMachineVertex._BREAKOUT_REGIONS.BREAKOUT.value,
-            size=self.BREAKOUT_REGION_BYTES, label='BreakoutParams')
+            size=self.BREAKOUT_REGION_BYTES, label='BreakoutKey')
         # vertex.reserve_provenance_data_region(spec)
         #reserve recording region
         spec.reserve_memory_region(
             BreakoutMachineVertex._BREAKOUT_REGIONS.RECORDING.value,
             recording_utilities.get_recording_header_size(1))
+        spec.reserve_memory_region(
+            region=BreakoutMachineVertex._BREAKOUT_REGIONS.PARAMS.value,
+            size=self.PARAM_REGION_BYTES, label='Parameters')
 
         # Write setup region
         spec.comment("\nWriting setup region:\n")
@@ -255,6 +267,14 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         ip_tags = tags.get_ip_tags_for_vertex(self) or []
         spec.write_array(recording_utilities.get_recording_header_array(
             [self._recording_size], ip_tags=ip_tags))
+
+
+        spec.comment("\nWriting arm param region:\n")
+        spec.switch_write_focus(
+            BreakoutMachineVertex._BREAKOUT_REGIONS.PARAMS.value)
+        ip_tags = tags.get_ip_tags_for_vertex(self) or []
+        spec.write_value(self.WIDTH_PIXELS, data_type=DataType.UINT32)
+        spec.write_value(self.HEIGHT_PIXELS, data_type=DataType.UINT32)
 
         # End-of-Spec:
         spec.end_specification()

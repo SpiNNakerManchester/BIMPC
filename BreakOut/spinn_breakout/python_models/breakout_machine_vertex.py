@@ -20,7 +20,8 @@ class BreakoutMachineVertex(MachineVertex):
         value="_BREAKOUT_REGIONS",
         names=[('SYSTEM', 0),
                ('BREAKOUT', 1),
-               ('RECORDING', 2)])
+               ('RECORDING', 2),
+               ('PARAMS', 3)])
 
     def __init__(self, resources_required, constraints=None, label=None):
         # Superclasses

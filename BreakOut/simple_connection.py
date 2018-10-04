@@ -1,4 +1,4 @@
-import spynnaker7.pyNN as p
+import spynnaker8 as p
 # from spynnaker_external_devices_plugin.pyNN.connections.\
 #     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
 from spynnaker.pyNN.connections.\
@@ -16,6 +16,8 @@ import time
 from multiprocessing.pool import ThreadPool
 import socket
 import numpy as np
+from pyNN.utility.plotting import Figure, Panel
+import matplotlib.pyplot as plt
 
 # Layout of pixels
 from spynnaker.pyNN.models.utility_models.spike_injector import \
@@ -109,34 +111,38 @@ UDP_PORT2 = UDP_PORT1 + 1
 p.setup(timestep=1.0)
 p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
 
+x_factor1 = 8
+y_factor1 = 8
+x_factor2 = 16
+y_factor2 = 16
+
 # Create breakout population and activate live output for it
-breakout_pop = p.Population(1, spinn_breakout.Breakout, {}, label="breakout")
-breakout_pop2 = p.Population(1, spinn_breakout.Breakout, {}, label="breakout")
+breakout_pop = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor1), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor1),label="breakout"))
+breakout_pop2 = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor2), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor2),label="breakout"))
 # ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
 ex.activate_live_output_for(breakout_pop2, host="0.0.0.1", port=UDP_PORT2)
 
 
 # Connect key spike injector to breakout population
 rate = {'rate': 2}#, 'duration': 10000000}
-spike_input = p.Population(2, p.SpikeSourcePoisson, rate, label="input_connect")
-p.Projection(spike_input, breakout_pop, p.AllToAllConnector(weights=2))
-spike_input2 = p.Population(2, p.SpikeSourcePoisson, rate, label="input_connect")
-p.Projection(spike_input2, breakout_pop2, p.AllToAllConnector(weights=2))
+spike_input = p.Population(2, p.SpikeSourcePoisson(rate=2, label="input_connect"))
+p.Projection(spike_input, breakout_pop, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
+spike_input2 = p.Population(2, p.SpikeSourcePoisson(rate=2, label="input_connect"))
+p.Projection(spike_input2, breakout_pop2, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
 # key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["input_connect"])
 
 weight = 0.1
-x_factor = 1
-y_factor = 1
-[Connections_on, Connections_off]=subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight, row_col_to_input_breakout)
-receive_pop_size = (160/x_factor)*(128/y_factor)
-receive_pop_on = p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop")
-receive_pop_off = p.Population(receive_pop_size, p.IF_cond_exp, {}, label="receive_pop")
-p.Projection(breakout_pop,receive_pop_on,p.FromListConnector(Connections_on))
-p.Projection(breakout_pop,receive_pop_off,p.FromListConnector(Connections_off))
-receive_pop_on.record()#["spikes"])
-receive_pop_off.record()#["spikes"])
+# [Connections_on, Connections_off]=subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight, row_col_to_input_breakout)
+receive_pop_size1 = (160/x_factor1)*(128/y_factor1)
+receive_pop_size2 = (160/x_factor2)*(128/y_factor2)
+receive_pop_1 = p.Population(receive_pop_size1, p.IF_cond_exp(label="receive_pop"))
+receive_pop_2 = p.Population(receive_pop_size2, p.IF_cond_exp(label="receive_pop"))
+p.Projection(breakout_pop,receive_pop_1,p.OneToOneConnector(), p.StaticSynapse(weight=0.2))
+p.Projection(breakout_pop2,receive_pop_2,p.OneToOneConnector(), p.StaticSynapse(weight=0.2))
+receive_pop_1.record('spikes')#["spikes"])
+receive_pop_2.record('spikes')#["spikes"])
 
-# Create visualiser
+# # Create visualiser
 # visualiser = Visualiser(
 #     UDP_PORT, None,
 #     x_res=X_RESOLUTION, y_res=Y_RESOLUTION,
@@ -170,36 +176,14 @@ running = False
 # Show visualiser (blocking)
 # visualiser.show()
 
-spikes = []
 # for j in range(receive_pop_size):
-spikes_on = receive_pop_on.getSpikes()
-pylab.figure()
-ax = pylab.subplot(1, 2, 1)#4, 1)
-pylab.plot([i[1] for i in spikes_on], [i[0] for i in spikes_on], "r.")
-pylab.xlabel("Time (ms)")
-pylab.ylabel("neuron ID")
-pylab.axis([0, runtime, -1, receive_pop_size +1])
-
-# ax = pylab.subplot(1, 4, 2)
-# img = np.zeros((y_res//y_factor)*(x_res//x_factor))
-# img[[i[0] for i in spikes_on]] = 1.
-# plt.imshow(img.reshape((y_res//y_factor), (x_res//x_factor)), interpolation='none')
-
-# pylab.show()
-
-ax = pylab.subplot(1, 2, 2)#4, 3)
-spikes_off = receive_pop_off.getSpikes()
-pylab.plot([i[1] for i in spikes_off], [i[0] for i in spikes_off], "r.")
-pylab.xlabel("Time (ms)")
-pylab.ylabel("neuron ID")
-pylab.axis([0, runtime, -1, receive_pop_size +1])
-
-# ax = pylab.subplot(1, 4, 4)
-# img = np.zeros((y_res//y_factor)*(x_res//x_factor))
-# img[[i[0] for i in spikes_off]] = 1.
-# plt.imshow(img.reshape((y_res//y_factor), (x_res//x_factor)), interpolation='none')
-
-pylab.show()
+spikes_1 = receive_pop_1.get_data('spikes').segments[0].spiketrains
+spikes_2 = receive_pop_2.get_data('spikes').segments[0].spiketrains
+Figure(
+    Panel(spikes_1, xlabel="Time (ms)", ylabel="nID", xticks=True),
+    Panel(spikes_2, xlabel="Time (ms)", ylabel="nID", xticks=True)
+)
+plt.show()
 
 scores = get_scores(breakout_pop=breakout_pop, simulator=simulator)
 scores2 = get_scores(breakout_pop=breakout_pop2, simulator=simulator)
