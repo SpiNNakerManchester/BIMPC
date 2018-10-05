@@ -31,7 +31,7 @@ setup(
     license="GNU GPLv3.0",
     packages=find_packages(),
     package_data={'spinn_breakout.model_binaries': ['*.aplx']},
-    install_requires=['spynnaker7', "numpy",],
+    install_requires=['spynnaker8', "numpy",],
     classifiers = [
         "Operating System :: POSIX :: Linux",
         "Operating System :: Microsoft :: Windows",
