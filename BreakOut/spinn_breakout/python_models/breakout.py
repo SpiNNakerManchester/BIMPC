@@ -105,7 +105,9 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
     BREAKOUT_REGION_BYTES = 4
     PARAM_REGION_BYTES = 10
     WIDTH_PIXELS = 160
+    X_FACTOR = 16
     HEIGHT_PIXELS = 128
+    Y_FACTOR = 16
     COLOUR_BITS = 2
     MAX_SIM_DURATION = 1000*60*60*24*7 #1 week
 
@@ -114,6 +116,8 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
 
     # parameters expected by PyNN
     default_parameters = {
+        'x_factor': X_FACTOR,
+        'y_factor': Y_FACTOR,
         'width': WIDTH_PIXELS,
         'height': HEIGHT_PIXELS,
         'colour_bits': COLOUR_BITS,
@@ -123,7 +127,8 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         'duration': MAX_SIM_DURATION
     }
 
-    def __init__(self, n_neurons, width=WIDTH_PIXELS, height=HEIGHT_PIXELS,
+    def __init__(self, n_neurons, x_factor=X_FACTOR, y_factor=Y_FACTOR,
+                 width=WIDTH_PIXELS, height=HEIGHT_PIXELS,
                  colour_bits=COLOUR_BITS, constraints=None,
                  label="Breakout", incoming_spike_buffer_size=None,
                  simulation_duration_ms=MAX_SIM_DURATION):
@@ -131,11 +136,13 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         # specified as additional parameters, forcing their product to be
         # duplicated in n_neurons seems pointless
 
-        self._width = width
-        self._height = height
+        self._x_factor = x_factor
+        self._y_factor = y_factor
+        self._width = width/x_factor
+        self._height = height/y_factor
         self._colour_bits = colour_bits
-        self._width_bits = numpy.uint32(numpy.ceil(numpy.log2(width)))
-        self._height_bits = numpy.uint32(numpy.ceil(numpy.log2(height)))
+        self._width_bits = numpy.uint32(numpy.ceil(numpy.log2(self._width)))
+        self._height_bits = numpy.uint32(numpy.ceil(numpy.log2(self._height)))
 
         self._n_neurons = (1 << (self._width_bits + self._height_bits +
                                  self._colour_bits + 1))
@@ -273,8 +280,8 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         spec.switch_write_focus(
             BreakoutMachineVertex._BREAKOUT_REGIONS.PARAMS.value)
         ip_tags = tags.get_ip_tags_for_vertex(self) or []
-        spec.write_value(self.WIDTH_PIXELS, data_type=DataType.UINT32)
-        spec.write_value(self.HEIGHT_PIXELS, data_type=DataType.UINT32)
+        spec.write_value(self._x_factor, data_type=DataType.UINT32)
+        spec.write_value(self._y_factor, data_type=DataType.UINT32)
 
         # End-of-Spec:
         spec.end_specification()

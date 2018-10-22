@@ -54,7 +54,7 @@ def get_scores(breakout_pop,simulator):
 
     return scores.tolist()
 
-def row_col_to_input_breakout(row, col, is_on_input, row_bits, event_bits=1, colour_bits=1, row_start=0):
+def row_col_to_input_breakout(row, col, is_on_input, row_bits, event_bits=1, colour_bits=2, row_start=0):
     row_bits = np.uint32(row_bits)
     idx = np.uint32(0)
 
@@ -79,7 +79,7 @@ def subsample_connection(x_res, y_res, subsamp_factor_x, subsamp_factor_y, weigh
     connection_list_off = []
 
     sx_res = int(x_res) // int(subsamp_factor_x)
-    row_bits = 8#int(np.ceil(np.log2(y_res)))
+    row_bits = int(np.ceil(np.log2(x_res)))
     for j in range(int(y_res)):
         for i in range(int(x_res)):
             si = i // subsamp_factor_x
@@ -117,8 +117,10 @@ x_factor2 = 16
 y_factor2 = 16
 
 # Create breakout population and activate live output for it
-breakout_pop = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor1), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor1),label="breakout"))
-breakout_pop2 = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor2), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor2),label="breakout"))
+# breakout_pop = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor1), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor1), label="breakout1"))
+# breakout_pop2 = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor2), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor2), label="breakout2"))
+breakout_pop = p.Population(1, p.Breakout(X_FACTOR=x_factor1, Y_FACTOR=y_factor1, label="breakout1"))
+breakout_pop2 = p.Population(1, p.Breakout(X_FACTOR=x_factor2, Y_FACTOR=y_factor2, label="breakout2"))
 # ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
 ex.activate_live_output_for(breakout_pop2, host="0.0.0.1", port=UDP_PORT2)
 
@@ -132,15 +134,19 @@ p.Projection(spike_input2, breakout_pop2, p.AllToAllConnector(), p.StaticSynapse
 # key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["input_connect"])
 
 weight = 0.1
-# [Connections_on, Connections_off]=subsample_connection(X_RESOLUTION, Y_RESOLUTION, x_factor, y_factor, weight, row_col_to_input_breakout)
+[Connections_on, Connections_off]=subsample_connection(X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1, 1, 1, weight, row_col_to_input_breakout)
 receive_pop_size1 = (160/x_factor1)*(128/y_factor1)
 receive_pop_size2 = (160/x_factor2)*(128/y_factor2)
 receive_pop_1 = p.Population(receive_pop_size1, p.IF_cond_exp(label="receive_pop"))
 receive_pop_2 = p.Population(receive_pop_size2, p.IF_cond_exp(label="receive_pop"))
-p.Projection(breakout_pop,receive_pop_1,p.OneToOneConnector(), p.StaticSynapse(weight=0.2))
-p.Projection(breakout_pop2,receive_pop_2,p.OneToOneConnector(), p.StaticSynapse(weight=0.2))
+p.Projection(breakout_pop,receive_pop_1,p.FromListConnector(Connections_on))#, p.StaticSynapse(weight=weight))
+p.Projection(breakout_pop2,receive_pop_2,p.OneToOneConnector(), p.StaticSynapse(weight=weight))
 receive_pop_1.record('spikes')#["spikes"])
 receive_pop_2.record('spikes')#["spikes"])
+
+test_pop = p.Population(4096, p.IF_cond_exp(label="test_pop"))
+p.Projection(breakout_pop, test_pop, p.OneToOneConnector(), p.StaticSynapse(weight=weight))
+test_pop.record('spikes')
 
 # # Create visualiser
 # visualiser = Visualiser(
@@ -151,10 +157,10 @@ receive_pop_2.record('spikes')#["spikes"])
 running = True
 # t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1])
 # r = threading.Thread(target=thread_visualiser, args=[UDP_PORT2])
-result = [10 for i in range(2)]
-x_res=160
-y_res=128
-visual = [np.zeros((y_res, x_res)) for i in range(2)]
+# result = [10 for i in range(2)]
+# x_res=160
+# y_res=128
+# visual = [np.zeros((y_res, x_res)) for i in range(2)]
 # t = ThreadPool(processes=2)
 # r = ThreadPool(processes=2)
 # result = t.apply_async(thread_visualiser, [UDP_PORT1])
@@ -179,9 +185,11 @@ running = False
 # for j in range(receive_pop_size):
 spikes_1 = receive_pop_1.get_data('spikes').segments[0].spiketrains
 spikes_2 = receive_pop_2.get_data('spikes').segments[0].spiketrains
+spikes_t = test_pop.get_data('spikes').segments[0].spiketrains
 Figure(
     Panel(spikes_1, xlabel="Time (ms)", ylabel="nID", xticks=True),
-    Panel(spikes_2, xlabel="Time (ms)", ylabel="nID", xticks=True)
+    Panel(spikes_2, xlabel="Time (ms)", ylabel="nID", xticks=True),
+    Panel(spikes_t, xlabel="Time (ms)", ylabel="nID", xticks=True)
 )
 plt.show()
 
