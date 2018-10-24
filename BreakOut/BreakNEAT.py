@@ -10,6 +10,7 @@ import pylab
 from spynnaker.pyNN.spynnaker_external_device_plugin_manager import \
     SpynnakerExternalDevicePluginManager as ex
 import spinn_breakout
+# from spinn_breakout import Breakout
 import sys, os
 import time
 import socket
@@ -21,6 +22,7 @@ import gc
 
 from peas.methods.neat import NEATPopulation, NEATGenotype
 from peas.networks.rnn import NeuralNetwork
+
 
 def get_scores(breakout_pop,simulator):
     b_vertex = breakout_pop._vertex
@@ -211,6 +213,16 @@ def connect_genes_to_fromlist(number_of_nodes, connections, nodes):
 
     return i2i_ex, i2h_ex, i2o_ex, h2i_ex, h2h_ex, h2o_ex, o2i_ex, o2h_ex, o2o_ex, i2i_in, i2h_in, i2o_in, h2i_in, h2h_in, h2o_in, o2i_in, o2h_in, o2o_in
 
+def no_of_neurons(x_f, y_f):
+    colour_bits = 2
+    width_bits = np.uint32(np.ceil(np.log2(X_RESOLUTION / x_f)))
+    height_bits = np.uint32(np.ceil(np.log2(Y_RESOLUTION / y_f)))
+
+    n = (1 << (width_bits + height_bits +
+                             colour_bits + 1))
+
+    return n
+
 def test_pop(pop, tracker):
     # gc.DEBUG_STATS
     # gc.DEBUG_COLLECTABLE
@@ -257,12 +269,14 @@ def test_pop(pop, tracker):
             # [i2i, i2h, i2o, h2i, h2h, h2o, o2i, o2h, o2o] = cm_to_fromlist(number_of_nodes, networks[i].cm)
 
             # Create breakout population
-            breakout_pops.append(p.Population(1, p.Breakout(HEIGHT_PIXELS=(x_res/x_factor), WIDTH_PIXELS=(y_res/y_factor), label="breakout {}".format(i))))
+            n_neurons = no_of_neurons(x_factor, y_factor)
+            # could always use the built in function to obtain the neuron count too
+            breakout_pops.append(p.Population(n_neurons, spinn_breakout.Breakout(x_factor=x_factor, y_factor=y_factor, label="breakout {}".format(i))))
             # print "after creating breakout"
             # tracker.print_diff()
 
             # Create input population and connect break out to it
-            receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp(label="receive_pop {}".format(i))))
+            receive_on_pops.append(p.Population(receive_pop_size, p.IF_cond_exp(), label="receive_pop {}".format(i)))
             # print "after creating receive pop"
             # tracker.print_diff()
             p.Projection(breakout_pops[i], receive_on_pops[i], breakout_connections)
@@ -270,13 +284,13 @@ def test_pop(pop, tracker):
             # tracker.print_diff()
 
             # Create output population and remaining population
-            output_pops.append(p.Population(output_size, p.IF_cond_exp(label="output_pop {}".format(i))))
+            output_pops.append(p.Population(output_size, p.IF_cond_exp(), label="output_pop {}".format(i)))
             p.Projection(output_pops[i], breakout_pops[i], p.AllToAllConnector())
             # print "after creating output"
             # tracker.print_diff()
 
             if hidden_size != 0:
-                hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp(label="hidden_pop {}".format(i))))
+                hidden_node_pops.append(p.Population(hidden_size, p.IF_cond_exp(), label="hidden_pop {}".format(i)))
                 hidden_count += 1
                 # hidden_node_pops[hidden_count-1].record()
             # print "after creating hidden"

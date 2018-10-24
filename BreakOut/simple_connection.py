@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from spynnaker.pyNN.spynnaker_external_device_plugin_manager import \
     SpynnakerExternalDevicePluginManager as ex
 from spynnaker import plot_utils
-import spinn_breakout
+from spinn_breakout import Breakout as b_out
 import threading
 import time
 from multiprocessing.pool import ThreadPool
@@ -119,17 +119,19 @@ y_factor2 = 16
 # Create breakout population and activate live output for it
 # breakout_pop = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor1), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor1), label="breakout1"))
 # breakout_pop2 = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor2), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor2), label="breakout2"))
-breakout_pop = p.Population(1, p.Breakout(X_FACTOR=x_factor1, Y_FACTOR=y_factor1, label="breakout1"))
-breakout_pop2 = p.Population(1, p.Breakout(X_FACTOR=x_factor2, Y_FACTOR=y_factor2, label="breakout2"))
+b1 = b_out(x_factor=x_factor1, y_factor=y_factor1)
+breakout_pop = p.Population(b1.neurons(), b1, label="breakout1")
+b2 = b_out(x_factor=x_factor2, y_factor=y_factor2)
+breakout_pop2 = p.Population(b2.neurons(), b2, label="breakout2")
 # ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
-ex.activate_live_output_for(breakout_pop2, host="0.0.0.1", port=UDP_PORT2)
+# ex.activate_live_output_for(breakout_pop2, host="0.0.0.1", port=UDP_PORT2)
 
 
 # Connect key spike injector to breakout population
 rate = {'rate': 2}#, 'duration': 10000000}
-spike_input = p.Population(2, p.SpikeSourcePoisson(rate=2, label="input_connect"))
+spike_input = p.Population(2, p.SpikeSourcePoisson(rate=2), label="input_connect")
 p.Projection(spike_input, breakout_pop, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
-spike_input2 = p.Population(2, p.SpikeSourcePoisson(rate=2, label="input_connect"))
+spike_input2 = p.Population(2, p.SpikeSourcePoisson(rate=2), label="input_connect")
 p.Projection(spike_input2, breakout_pop2, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
 # key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["input_connect"])
 
@@ -137,20 +139,20 @@ weight = 0.1
 [Connections_on, Connections_off]=subsample_connection(X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1, 1, 1, weight, row_col_to_input_breakout)
 receive_pop_size1 = (160/x_factor1)*(128/y_factor1)
 receive_pop_size2 = (160/x_factor2)*(128/y_factor2)
-receive_pop_1 = p.Population(receive_pop_size1, p.IF_cond_exp(label="receive_pop"))
-receive_pop_2 = p.Population(receive_pop_size2, p.IF_cond_exp(label="receive_pop"))
+receive_pop_1 = p.Population(receive_pop_size1, p.IF_cond_exp(), label="receive_pop")
+receive_pop_2 = p.Population(receive_pop_size2, p.IF_cond_exp(), label="receive_pop")
 p.Projection(breakout_pop,receive_pop_1,p.FromListConnector(Connections_on))#, p.StaticSynapse(weight=weight))
 p.Projection(breakout_pop2,receive_pop_2,p.OneToOneConnector(), p.StaticSynapse(weight=weight))
 receive_pop_1.record('spikes')#["spikes"])
 receive_pop_2.record('spikes')#["spikes"])
 
-test_pop = p.Population(4096, p.IF_cond_exp(label="test_pop"))
+test_pop = p.Population(b1.neurons(), p.IF_cond_exp(), label="test_pop")
 p.Projection(breakout_pop, test_pop, p.OneToOneConnector(), p.StaticSynapse(weight=weight))
 test_pop.record('spikes')
 
 # # Create visualiser
 # visualiser = Visualiser(
-#     UDP_PORT, None,
+#     UDP_PORT1, None,
 #     x_res=X_RESOLUTION, y_res=Y_RESOLUTION,
 #     x_bits=X_BITS, y_bits=Y_BITS)
 

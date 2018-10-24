@@ -62,9 +62,9 @@ from data_specification.enums.data_type import DataType
 # Breakout
 # ----------------------------------------------------------------------------
 # **HACK** for Projection to connect a synapse type is required
-class BreakoutSynapseType(object):
-    def get_synapse_id_by_target(self, target):
-        return 0
+# class BreakoutSynapseType(object):
+#     def get_synapse_id_by_target(self, target):
+#         return 0
 
 
 # ----------------------------------------------------------------------------
@@ -102,6 +102,9 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
     def clear_connection_cache(self):
         pass
 
+    def get_synapse_id_by_target(self, target):
+        return 0
+
     BREAKOUT_REGION_BYTES = 4
     PARAM_REGION_BYTES = 10
     WIDTH_PIXELS = 160
@@ -112,7 +115,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
     MAX_SIM_DURATION = 1000*60*60*24*7 #1 week
 
     # **HACK** for Projection to connect a synapse type is required
-    synapse_type = BreakoutSynapseType()
+    # synapse_type = BreakoutSynapseType()
 
     # parameters expected by PyNN
     default_parameters = {
@@ -127,7 +130,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         'duration': MAX_SIM_DURATION
     }
 
-    def __init__(self, n_neurons, x_factor=X_FACTOR, y_factor=Y_FACTOR,
+    def __init__(self, x_factor=X_FACTOR, y_factor=Y_FACTOR,
                  width=WIDTH_PIXELS, height=HEIGHT_PIXELS,
                  colour_bits=COLOUR_BITS, constraints=None,
                  label="Breakout", incoming_spike_buffer_size=None,
@@ -175,6 +178,10 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         # PopulationSettableChangeRequiresMapping.__init__(self)
         # self.width = width
         # self.height = height
+
+    def neurons(self):
+
+        return self._n_neurons
 
     def get_maximum_delay_supported_in_ms(self, machine_time_step):
         # Breakout has no synapses so can simulate only one time step of delay

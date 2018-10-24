@@ -188,14 +188,14 @@ static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH_MAX);
 static inline void add_score_up_event()
 {
   spin1_send_mc_packet(key | (SPECIAL_EVENT_SCORE_UP), 0, NO_PAYLOAD);
-  log_debug("Score up");
+//  log_info("Score up");
   current_score++;
 }
 
 static inline void add_score_down_event()
 {
   spin1_send_mc_packet(key | (SPECIAL_EVENT_SCORE_DOWN), 0, NO_PAYLOAD);
-  log_debug("Score down");
+//  log_info("Score down");
   current_score--;
 }
 
