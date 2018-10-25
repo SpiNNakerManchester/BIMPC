@@ -66,21 +66,21 @@ class Visualiser(object):
         # Build masks
         self.x_mask = (1 << x_bits) - 1
         self.x_shift = self.colour_bits + y_bits
-        assert self.x_shift == 10, self.x_shift
+        # assert self.x_shift == 10, self.x_shift
 
         self.y_mask = (1 << y_bits) - 1
         self.y_shift = self.colour_bits
 
-        assert self.y_shift == 2, self.y_shift
+        # assert self.y_shift == 2, self.y_shift
 
         self.colour_mask = 1
         self.bricked_mask = 2
 
         self.value_mask = (1 << (x_bits + y_bits + self.colour_bits)) - 1
 
-        assert x_bits + y_bits + self.colour_bits == 18, x_bits + y_bits + self.colour_bits
+        # assert x_bits + y_bits + self.colour_bits == 18, x_bits + y_bits + self.colour_bits
 
-        assert self.value_mask == 0x3FFFF, self.value_mask
+        # assert self.value_mask == 0x3FFFF, self.value_mask
 
         self.y_res = y_res
         self.x_res = x_res

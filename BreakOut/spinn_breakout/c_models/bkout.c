@@ -701,7 +701,7 @@ void timer_callback(uint unused, uint dummy)
 //    log_info("key count Right %u", right_key_count);
 
     log_info("Exiting on timer.");
-    simulation_handle_pause_resume(NULL);
+    simulation_ready_to_read();
 
     _time -= 1;
     return;

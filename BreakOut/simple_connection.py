@@ -123,7 +123,7 @@ b1 = b_out(x_factor=x_factor1, y_factor=y_factor1)
 breakout_pop = p.Population(b1.neurons(), b1, label="breakout1")
 b2 = b_out(x_factor=x_factor2, y_factor=y_factor2)
 breakout_pop2 = p.Population(b2.neurons(), b2, label="breakout2")
-# ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
+ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
 # ex.activate_live_output_for(breakout_pop2, host="0.0.0.1", port=UDP_PORT2)
 
 
@@ -150,11 +150,11 @@ test_pop = p.Population(b1.neurons(), p.IF_cond_exp(), label="test_pop")
 p.Projection(breakout_pop, test_pop, p.OneToOneConnector(), p.StaticSynapse(weight=weight))
 test_pop.record('spikes')
 
-# # Create visualiser
-# visualiser = Visualiser(
-#     UDP_PORT1, None,
-#     x_res=X_RESOLUTION, y_res=Y_RESOLUTION,
-#     x_bits=X_BITS, y_bits=Y_BITS)
+# Create visualiser
+visualiser = Visualiser(
+    UDP_PORT1, None,
+    x_res=X_RESOLUTION/x_factor1, y_res=Y_RESOLUTION/y_factor1,
+    x_bits=np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))), y_bits=np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1))))
 
 running = True
 # t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1])
@@ -172,12 +172,17 @@ running = True
 print "reached here 1"
 # t.start()
 # r.start()
-runtime = 31000
+runtime = 30000
 
 simulator = get_simulator()
 
-p.run(runtime)
+# visualiser.show()
+
+p.run(None)
 print "reached here 2"
+
+visualiser.show()
+
 running = False
 # visualiser._return_score()
 
