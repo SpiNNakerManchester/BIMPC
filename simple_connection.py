@@ -175,10 +175,10 @@ print "reached here 1"
 runtime = 30000
 
 simulator = get_simulator()
-
+print simulator
 # visualiser.show()
 
-p.run(None)
+p.run(runtime)
 print "reached here 2"
 
 visualiser.show()
