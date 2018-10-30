@@ -188,14 +188,14 @@ static uint32_t x_ratio=UINT32_MAX/(GAME_WIDTH_MAX);
 static inline void add_score_up_event()
 {
   spin1_send_mc_packet(key | (SPECIAL_EVENT_SCORE_UP), 0, NO_PAYLOAD);
-//  log_info("Score up");
+//  io_printf(IO_BUF, "Score up\n");
   current_score++;
 }
 
 static inline void add_score_down_event()
 {
   spin1_send_mc_packet(key | (SPECIAL_EVENT_SCORE_DOWN), 0, NO_PAYLOAD);
-//  log_info("Score down");
+//  io_printf(IO_BUF, "Score down\n");
   current_score--;
 }
 
@@ -217,7 +217,7 @@ static inline colour_t get_pixel_col (int i, int j)
 // inserts pixel colour within word
 static inline void set_pixel_col (int i, int j, colour_t col, bool bricked)
 {
-    log_info("setting (%d,%d) to %d, %d, g%d, w%d, h%d", i, j, col, bricked, game_bits, GAME_WIDTH, GAME_HEIGHT);
+    io_printf(IO_BUF, "setting (%d,%d) to %d, b-%d, g%d, w%d, h%d\n", i, j, col, bricked, game_bits, GAME_WIDTH, GAME_HEIGHT);
     if (bricked) {
         add_event((brick_corner_x * BRICK_WIDTH),
                       (brick_corner_y* BRICK_HEIGHT + BRICK_LAYER_OFFSET),
@@ -268,7 +268,7 @@ static inline bool is_a_brick(int x, int y) // x - width, y- height?
         }
 
 
-//        log_info("%d %d %d %d", x, y, pos_x, pos_y);
+//        io_printf(IO_BUF, "%d %d %d %d\n", x, y, pos_x, pos_y);
         return val;
     }
     brick_corner_x = -1;
@@ -308,18 +308,18 @@ static void update_frame ()
     if (right_key_count > left_key_count){
         move_direction = KEY_RIGHT;
         move_count_r++;
-    //    log_info("moved right");
+    //    io_printf(IO_BUF, "moved right\n");
     }
     else if (left_key_count > right_key_count){
         move_direction = KEY_LEFT;
         move_count_l++;
-        //    log_info("moved left");
+        //    io_printf(IO_BUF, "moved left\n");
     }
     else{
         move_direction = 2;
-        //    log_info("didn't move!");
+        //    io_printf(IO_BUF, "didn't move!\n");
     }
-    log_info("left = %d, right = %d", left_key_count, right_key_count);
+    io_printf(IO_BUF, "left = %d, right = %d\n", left_key_count, right_key_count);
 
 
     // Update bat and clamp
@@ -331,8 +331,6 @@ static void update_frame ()
     {
         x_bat = GAME_WIDTH-bat_len-1;
     }
-
-
 
     // Clear keystate
     left_key_count = 0;
@@ -369,19 +367,19 @@ static void update_frame ()
     if (out_of_play == 0)
     {
         // clear pixel to background
-        log_info("setting ball to background x=%d, y=%d, fact=%d, xf=%d, yf=%d", x, y, FACT, x/FACT, y/FACT);
+        io_printf(IO_BUF, "setting ball to background x=%d, y=%d, fact=%d, xf=%d, yf=%d\n", x, y, FACT, x/FACT, y/FACT);
         set_pixel_col(x/FACT, y/FACT, COLOUR_BACKGROUND, false);
 
         // move ball in x and bounce off sides
         x += u;
         if (x < -u)
         {
-            //      log_info("OUT 1");
+            //      io_printf(IO_BUF, "OUT 1\n");
             u = -u;
         }
         if (x >= ((GAME_WIDTH*FACT)-u))
         {
-            //      log_info("OUT 2 x = %d, u = %d, gw = %d, fact = %d", x, u, GAME_WIDTH, FACT);
+            //      io_printf(IO_BUF, "OUT 2 x = %d, u = %d, gw = %d, fact = %d\n", x, u, GAME_WIDTH, FACT);
             u = -u;
         }
 
@@ -397,17 +395,17 @@ static void update_frame ()
             v = -v;
         }
 
-        log_info("about to is a brick");
+        io_printf(IO_BUF, "about to is a brick\n");
         //detect collision
         // if we hit something hard! -- paddle or brick
         bool bricked = is_a_brick(x/ FACT, y/ FACT);
 
         if ( bricked ) {
-            log_info("got in bricked");
+            io_printf(IO_BUF, "got in bricked\n");
             int brick_x = brick_corner_x * BRICK_WIDTH;
             int brick_y = (brick_corner_y* BRICK_HEIGHT + BRICK_LAYER_OFFSET);
-            //        log_info("x-brick_x = %d, %d %d",x/FACT - brick_x, x/FACT, brick_x);
-            //        log_info("y-brick_y = %d, %d %d",y/FACT - brick_y, y/FACT, brick_y);
+            //        io_printf(IO_BUF, "x-brick_x = %d, %d %d\n",x/FACT - brick_x, x/FACT, brick_x);
+            //        io_printf(IO_BUF, "y-brick_y = %d, %d %d",y/FACT - brick_y, y/FACT, brick_y);
 
             if ( brick_x == x/FACT && u > 0){
                 u = -u;
@@ -432,7 +430,7 @@ static void update_frame ()
 
         if (get_pixel_col(x / FACT, y / FACT) & COLOUR_HARD && y > GAME_HEIGHT*(FACT / 2))
         {
-            log_info("got in get pixel colour");
+            io_printf(IO_BUF, "got in get pixel colour\n");
             bool broke = false;
             if (x/FACT < (x_bat+bat_len/4))
             {
@@ -456,7 +454,7 @@ static void update_frame ()
             }
             else
             {
-                log_info("Broke bat 0x%x", (frame_buff[(x/FACT) / 8][y/FACT] >> ((x/FACT % 8)*4) & 0xF));
+                io_printf(IO_BUF, "Broke bat 0x%x\n", (frame_buff[(x/FACT) / 8][y/FACT] >> ((x/FACT % 8)*4) & 0xF));
                 broke = true;
                 //        u = FACT;
             }
@@ -476,7 +474,7 @@ static void update_frame ()
         // lost ball
         if (y >= (GAME_HEIGHT*FACT-v))
         {
-            log_info("got in lost ball");
+            io_printf(IO_BUF, "got in lost ball\n");
             v = -1 * FACT;
             y = (GAME_HEIGHT - GAME_HEIGHT /8) * FACT;
 
@@ -510,7 +508,7 @@ static void update_frame ()
         // draw ball
         else
         {
-            log_info("else");
+            io_printf(IO_BUF, "else\n");
             set_pixel_col(x/FACT, y/FACT, COLOUR_BALL, false);
         }
     }
@@ -522,7 +520,7 @@ static void update_frame ()
 
 static bool initialize(uint32_t *timer_period)
 {
-    log_info("Initialise breakout: started");
+    io_printf(IO_BUF, "Initialise breakout: started\n");
 
     // Get the address this core's DTCM data starts at from SRAM
     address_t address = data_specification_get_data_address();
@@ -546,14 +544,14 @@ static bool initialize(uint32_t *timer_period)
     {
         return false;
     }
-    log_info("simulation time = %u", simulation_ticks);
+    io_printf(IO_BUF, "simulation time = %u\n", simulation_ticks);
 
 
     // Read breakout region
     address_t breakout_region = data_specification_get_region(REGION_BREAKOUT, address);
     key = breakout_region[0];
-    log_info("\tKey=%08x", key);
-    log_info("\tTimer period=%d", *timer_period);
+    io_printf(IO_BUF, "\tKey=%08x\n", key);
+    io_printf(IO_BUF, "\tTimer period=%d\n", *timer_period);
 
     //get recording region
     address_t recording_address = data_specification_get_region(
@@ -596,7 +594,7 @@ static bool initialize(uint32_t *timer_period)
     BRICK_LAYER_HEIGHT = bricks_deep * BRICK_HEIGHT;//BRICK_LAYER_HEIGHT / y_factor;
     BRICK_LAYER_WIDTH = BRICK_WIDTH;//BRICK_LAYER_WIDTH / x_factor;
 
-    log_info("bw%d, bh%d, blo%d, blh%d, blw%d, xb%d, bl%d, u%d, v%d", BRICK_WIDTH, BRICK_HEIGHT, BRICK_LAYER_OFFSET, BRICK_LAYER_HEIGHT, BRICK_LAYER_WIDTH, x_bat, bat_len, u, v);
+    io_printf(IO_BUF, "bw%d, bh%d, blo%d, blh%d, blw%d, xb%d, bl%d, u%d, v%d\n", BRICK_WIDTH, BRICK_HEIGHT, BRICK_LAYER_OFFSET, BRICK_LAYER_HEIGHT, BRICK_LAYER_WIDTH, x_bat, bat_len, u, v);
 
     int *game_bits_pointer;
     game_bits_pointer = &game_bits;
@@ -611,7 +609,7 @@ static bool initialize(uint32_t *timer_period)
         return false;
     }
 
-    log_info("Initialise: completed successfully");
+    io_printf(IO_BUF, "Initialise: completed successfully\n");
 
     return true;
 }
@@ -667,7 +665,7 @@ void timer_callback(uint unused, uint dummy)
 //      while (x >= GAME_WIDTH)
 //         x = (int)(mars_kiss32()/x_ratio);
 ////      x = (int)(mars_kiss32()%GAME_WIDTH);
-////      log_info("random x = %d", x);
+////      io_printf(IO_BUF, "random x = %d", x);
 //      x *= FACT;
 //   }
 //
@@ -682,7 +680,7 @@ void timer_callback(uint unused, uint dummy)
 //
 //            }
 //        }
-//    log_info("printed bricks");
+//    io_printf(IO_BUF, "printed bricks");
 //   }
 
   if (!infinite_run && _time >= simulation_ticks)
@@ -693,14 +691,14 @@ void timer_callback(uint unused, uint dummy)
     simulation_handle_pause_resume(resume_callback);
 //    spin1_callback_off(MC_PACKET_RECEIVED);
 
-    log_info("move count Left %u", move_count_l);
-    log_info("move count Right %u", move_count_r);
-    log_info("infinite_run %d; time %d",infinite_run, _time);
-    log_info("simulation_ticks %d",simulation_ticks);
-//    log_info("key count Left %u", left_key_count);
-//    log_info("key count Right %u", right_key_count);
+    io_printf(IO_BUF, "move count Left %u\n", move_count_l);
+    io_printf(IO_BUF, "move count Right %u\n", move_count_r);
+    io_printf(IO_BUF, "infinite_run %d; time %d\n",infinite_run, _time);
+    io_printf(IO_BUF, "simulation_ticks %d\n",simulation_ticks);
+//    io_printf(IO_BUF, "key count Left %u", left_key_count);
+//    io_printf(IO_BUF, "key count Right %u", right_key_count);
 
-    log_info("Exiting on timer.");
+    io_printf(IO_BUF, "Exiting on timer.\n");
     simulation_ready_to_read();
 
     _time -= 1;
@@ -870,7 +868,7 @@ void c_main(void)
     uint32_t timer_period;
     if (!initialize(&timer_period))
     {
-        log_error("Error in initialisation - exiting!");
+        io_printf(IO_BUF,"Error in initialisation - exiting!\n");
         rt_error(RTE_SWERR);
         return;
     }
@@ -885,12 +883,12 @@ void c_main(void)
     pkt_count = 0;
 
     // Set timer tick (in microseconds)
-    log_info("setting timer tick callback for %d microseconds",
+    io_printf(IO_BUF, "setting timer tick callback for %d microseconds\n",
               timer_period);
     spin1_set_timer_tick(timer_period);
-    log_info("bricks %x", &bricks);
+    io_printf(IO_BUF, "bricks %x\n", &bricks);
 
-    log_info("simulation_ticks %d",simulation_ticks);
+    io_printf(IO_BUF, "simulation_ticks %d\n",simulation_ticks);
 
     // Register callback
     spin1_callback_on(TIMER_TICK, timer_callback, 2);

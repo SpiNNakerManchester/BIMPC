@@ -38,5 +38,14 @@ setup(
         "Operating System :: MacOS",
 
         "Programming Language :: Python :: 2.7"
-    ]
+    ]#,
+    #
+    # # Scripts
+    # entry_points={
+    #     "gui_scripts": [
+    #         "break_spinn = "
+    #         "BreakOut.spinn_breakout.visualiser.visualiser:"
+    #         "spynnaker_visualisers.sudoku.sudoku_visualiser:main",
+    #     ],
+    # }
 )

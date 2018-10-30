@@ -49,8 +49,6 @@ class SpecialEvent(enum.IntEnum):
 class Visualiser(object):
     # How many bits are used to represent colour
     colour_bits = 2
-    BRICK_WIDTH = 10
-    BRICK_HEIGHT = 6
 
     def __init__(self, udp_port, key_input_connection=None, scale=4,
                  x_res=160, y_res=128, x_bits=8, y_bits=8, fps=60):
@@ -59,6 +57,9 @@ class Visualiser(object):
 
         # Zero score
         self.score = 0
+
+        self.BRICK_WIDTH = x_res / 5
+        self.BRICK_HEIGHT = y_res / 8
 
         # Cache reference to key input connection
         self.key_input_connection = key_input_connection
@@ -84,9 +85,20 @@ class Visualiser(object):
 
         self.y_res = y_res
         self.x_res = x_res
-        self.bat_width = 16
+        self.bat_width = 16 / (160 / self.x_res)
         self.fps = fps
         self.scale = scale
+
+        print "x_res", self.x_res
+        print "y_res", self.y_res
+        print "x_bits", x_bits
+        print "y_bits", y_bits
+        print "x_mask", self.x_mask
+        print "y_mask", self.y_mask
+        print "v_mask", self.value_mask
+        print "bat width", self.bat_width
+        print "Brick Width", self.BRICK_WIDTH
+        print "Brick Height", self.BRICK_HEIGHT
 
         # Open socket to receive datagrams
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -160,6 +172,7 @@ class Visualiser(object):
     # Private methods
     # ------------------------------------------------------------------------
     def _update(self, frame):
+        # print "trying to update interval = ", (1000. / self.fps)
 
         # If state isn't idle, send spike to key input
         if self.input_state != InputState.idle and self.key_input_connection:

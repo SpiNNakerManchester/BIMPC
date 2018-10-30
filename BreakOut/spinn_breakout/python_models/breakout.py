@@ -180,7 +180,6 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         # self.height = height
 
     def neurons(self):
-
         return self._n_neurons
 
     def get_maximum_delay_supported_in_ms(self, machine_time_step):

@@ -25,26 +25,26 @@ from spynnaker.pyNN.models.utility_models.spike_injector import \
 from spinn_breakout.visualiser.visualiser import Visualiser
 
 
-def thread_visualiser(UDP_PORT):
+def thread_visualiser(UDP_PORT, xr, yr, xb, yb):
     id = UDP_PORT - UDP_PORT1
     print "threadin ", running, id
     # time.sleep(5)
     visualiser = Visualiser(
         UDP_PORT, None,# id,
-        x_res=X_RESOLUTION, y_res=Y_RESOLUTION,
-        x_bits=X_BITS, y_bits=Y_BITS)
+        x_res=xr, y_res=yr,
+        x_bits=xb, y_bits=yb)
     print "threadin2 ", running, id
-    # visualiser.show()
-    visualiser._update(None)
-    score = 0
-    while running == True:
-        print "in ", UDP_PORT, id, score
-        score = visualiser._update(None)
-        time.sleep(1)
-    print "left ", running, id
+    visualiser.show()
+    # visualiser._update(None)
+    # score = 0
+    # while running == True:
+    #     print "in ", UDP_PORT, id, score
+    #     score = visualiser._update(None)
+    #     time.sleep(1)
+    # print "left ", running, id
     # score = visualiser._return_score()
-    visual[id] = visualiser._return_image_data()
-    result[id] = score
+    # visual[id] = visualiser._return_image_data()
+    # result[id] = score
 
 def get_scores(breakout_pop,simulator):
     b_vertex = breakout_pop._vertex
@@ -148,16 +148,18 @@ receive_pop_2.record('spikes')#["spikes"])
 
 test_pop = p.Population(b1.neurons(), p.IF_cond_exp(), label="test_pop")
 p.Projection(breakout_pop, test_pop, p.OneToOneConnector(), p.StaticSynapse(weight=weight))
-test_pop.record('spikes')
+# test_pop.record('spikes')
 
 # Create visualiser
-visualiser = Visualiser(
-    UDP_PORT1, None,
-    x_res=X_RESOLUTION/x_factor1, y_res=Y_RESOLUTION/y_factor1,
-    x_bits=np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))), y_bits=np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1))))
+# visualiser = Visualiser(
+#     UDP_PORT1, None,
+#     x_res=X_RESOLUTION/x_factor1, y_res=Y_RESOLUTION/y_factor1,
+#     x_bits=np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))), y_bits=np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1))))
 
 running = True
-# t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1])
+t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
+                                                     np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))),
+                                                     np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))])
 # r = threading.Thread(target=thread_visualiser, args=[UDP_PORT2])
 # result = [10 for i in range(2)]
 # x_res=160
@@ -170,7 +172,7 @@ running = True
 # t.daemon = True
 # Run simulation (non-blocking)
 print "reached here 1"
-# t.start()
+t.start()
 # r.start()
 runtime = 30000
 
@@ -178,10 +180,10 @@ simulator = get_simulator()
 
 # visualiser.show()
 
-p.run(None)
+p.run(runtime)
 print "reached here 2"
 
-visualiser.show()
+# visualiser.show()
 
 running = False
 # visualiser._return_score()
@@ -191,12 +193,12 @@ running = False
 
 # for j in range(receive_pop_size):
 spikes_1 = receive_pop_1.get_data('spikes').segments[0].spiketrains
-spikes_2 = receive_pop_2.get_data('spikes').segments[0].spiketrains
-spikes_t = test_pop.get_data('spikes').segments[0].spiketrains
+# spikes_2 = receive_pop_2.get_data('spikes').segments[0].spiketrains
+# spikes_t = test_pop.get_data('spikes').segments[0].spiketrains
 Figure(
-    Panel(spikes_1, xlabel="Time (ms)", ylabel="nID", xticks=True),
-    Panel(spikes_2, xlabel="Time (ms)", ylabel="nID", xticks=True),
-    Panel(spikes_t, xlabel="Time (ms)", ylabel="nID", xticks=True)
+    Panel(spikes_1, xlabel="Time (ms)", ylabel="nID", xticks=True)#,
+    # Panel(spikes_2, xlabel="Time (ms)", ylabel="nID", xticks=True)#,
+    # Panel(spikes_t, xlabel="Time (ms)", ylabel="nID", xticks=True)
 )
 plt.show()
 
