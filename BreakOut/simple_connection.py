@@ -174,7 +174,7 @@ t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_f
 print "reached here 1"
 t.start()
 # r.start()
-runtime = 30000
+runtime = 10000
 
 simulator = get_simulator()
 
@@ -193,6 +193,12 @@ running = False
 
 # for j in range(receive_pop_size):
 spikes_1 = receive_pop_1.get_data('spikes').segments[0].spiketrains
+
+counter = 0
+for neuron in spikes_1:
+    for spike in neuron:
+        print spike
+        counter += 1
 # spikes_2 = receive_pop_2.get_data('spikes').segments[0].spiketrains
 # spikes_t = test_pop.get_data('spikes').segments[0].spiketrains
 Figure(

@@ -75,7 +75,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
                AbstractProvidesOutgoingPartitionConstraints,
                AbstractAcceptsIncomingSynapses,
                AbstractNeuronRecordable,
-               SimplePopulationSettable,
+               SimplePopulationSettable
                # AbstractBinaryUsesSimulationRun
                ):
 
@@ -139,6 +139,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         # specified as additional parameters, forcing their product to be
         # duplicated in n_neurons seems pointless
 
+        self._label = label
         self._x_factor = x_factor
         self._y_factor = y_factor
         self._width = width/x_factor
@@ -208,7 +209,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
     def create_machine_vertex(self, vertex_slice, resources_required,
                               label=None, constraints=None):
         # Return suitable machine vertex
-        return BreakoutMachineVertex(resources_required, constraints, label)
+        return BreakoutMachineVertex(resources_required, constraints, self._label)
 
     @property
     @overrides(ApplicationVertex.n_atoms)
