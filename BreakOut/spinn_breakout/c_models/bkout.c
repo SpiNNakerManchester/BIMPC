@@ -571,7 +571,7 @@ static bool initialize(uint32_t *timer_period)
     bricking = param_region[2];
 
     if(bricking != 0 && bricking != 1){
-        io_printf(IO_BUF, "\nbricking is broke af\n")
+        io_printf(IO_BUF, "\nbricking is broke af\n");
     }
 
 //    int *GAME_WIDTH_POINTER;
