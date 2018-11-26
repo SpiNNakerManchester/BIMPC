@@ -119,9 +119,9 @@ y_factor2 = 16
 # Create breakout population and activate live output for it
 # breakout_pop = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor1), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor1), label="breakout1"))
 # breakout_pop2 = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor2), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor2), label="breakout2"))
-b1 = b_out(x_factor=x_factor1, y_factor=y_factor1)
+b1 = b_out(x_factor=x_factor1, y_factor=y_factor1, bricking=0)
 breakout_pop = p.Population(b1.neurons(), b1, label="breakout1")
-b2 = b_out(x_factor=x_factor2, y_factor=y_factor2)
+b2 = b_out(x_factor=x_factor2, y_factor=y_factor2, bricking=0)
 breakout_pop2 = p.Population(b2.neurons(), b2, label="breakout2")
 ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
 # ex.activate_live_output_for(breakout_pop2, host="0.0.0.1", port=UDP_PORT2)

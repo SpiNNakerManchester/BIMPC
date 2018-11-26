@@ -127,14 +127,15 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         'constraints': None,
         'label': "Breakout",
         'incoming_spike_buffer_size': None,
-        'duration': MAX_SIM_DURATION
+        'duration': MAX_SIM_DURATION,
+        'bricking': 1
     }
 
     def __init__(self, x_factor=X_FACTOR, y_factor=Y_FACTOR,
                  width=WIDTH_PIXELS, height=HEIGHT_PIXELS,
                  colour_bits=COLOUR_BITS, constraints=None,
                  label="Breakout", incoming_spike_buffer_size=None,
-                 simulation_duration_ms=MAX_SIM_DURATION):
+                 simulation_duration_ms=MAX_SIM_DURATION, bricking=1):
         # **NOTE** n_neurons currently ignored - width and height will be
         # specified as additional parameters, forcing their product to be
         # duplicated in n_neurons seems pointless
@@ -150,6 +151,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
 
         self._n_neurons = (1 << (self._width_bits + self._height_bits +
                                  self._colour_bits + 1))
+        self._bricking = bricking
 
         print "#width =", self._width
         print "#width bits =", self._width_bits
@@ -289,6 +291,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         ip_tags = tags.get_ip_tags_for_vertex(self) or []
         spec.write_value(self._x_factor, data_type=DataType.UINT32)
         spec.write_value(self._y_factor, data_type=DataType.UINT32)
+        spec.write_value(self._bricking, data_type=DataType.UINT32)
 
         # End-of-Spec:
         spec.end_specification()

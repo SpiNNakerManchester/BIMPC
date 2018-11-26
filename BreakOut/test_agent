@@ -1,4 +1,4 @@
-import spynnaker7.pyNN as p
+import spynnaker8 as p
 # from spynnaker_external_devices_plugin.pyNN.connections.\
 #     spynnaker_live_spikes_connection import SpynnakerLiveSpikesConnection
 from spynnaker.pyNN.connections.\
@@ -520,8 +520,8 @@ delay = 2
 
 x_res = 160
 y_res = 128
-x_factor = 32
-y_factor = 32
+x_factor = 16
+y_factor = 16
 
 input_size = (x_res/x_factor)*(y_res/y_factor)
 output_size = 2
@@ -534,6 +534,7 @@ output_size = 2
 # file = 'brick NEAT 32 f=10.csv'
 # file = 'hyper champion 51 - 16.csv'
 file = 'champion 59 - 32 f=26.csv'
+file = 'NEAT try champion 288 - 16 (copy).csv'
 hyper = False
 
 if hyper == True:

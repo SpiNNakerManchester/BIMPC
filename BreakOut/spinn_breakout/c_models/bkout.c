@@ -127,6 +127,7 @@ int number_of_lives = NUMBER_OF_LIVES;
 
 int x_factor = 1;
 int y_factor = 1;
+int bricking = 2;
 
 // ball position and velocity scale factor
 int FACT = 16;
@@ -294,7 +295,12 @@ static void init_frame ()
 
     for (int i =0; i<BRICKS_PER_COLUMN; i++)
         for (int j=0; j<BRICKS_PER_ROW; j++) {
-            bricks[i][j] = true;
+            if(bricking == 1){
+                bricks[i][j] = true;
+            }
+            else{
+                bricks[i][j] = false;
+            }
         }
     current_number_of_bricks = BRICKS_PER_COLUMN * BRICKS_PER_ROW;
 }
@@ -562,6 +568,11 @@ static bool initialize(uint32_t *timer_period)
 
     x_factor = param_region[0];
     y_factor = param_region[1];
+    bricking = param_region[2];
+
+    if(bricking != 0 && bricking != 1){
+        io_printf(IO_BUF, "\nbricking is broke af\n")
+    }
 
 //    int *GAME_WIDTH_POINTER;
 //    GAME_WIDTH_POINTER = &GAME_WIDTH;
@@ -711,7 +722,7 @@ void timer_callback(uint unused, uint dummy)
     tick_in_frame++;
     if(tick_in_frame == FRAME_DELAY)
     {
-      if (!current_number_of_bricks) {
+      if (!current_number_of_bricks && bricking == 1) {
         for (int i =0; i<BRICKS_PER_COLUMN; i++)
             for (int j=0; j<BRICKS_PER_ROW; j++) {
                 bricks[i][j] = true;
