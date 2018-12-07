@@ -29,6 +29,9 @@ def thread_visualiser(UDP_PORT, xr, yr, xb, yb):
     id = UDP_PORT - UDP_PORT1
     print "threadin ", running, id
     # time.sleep(5)
+    # xb = np.uint32(np.ceil(np.log2(X_RESOLUTION / x_factor1)))
+    # yb = np.uint32(np.ceil(np.log2(Y_RESOLUTION / y_factor1)))
+    Figure
     visualiser = Visualiser(
         UDP_PORT, None,# id,
         x_res=xr, y_res=yr,
@@ -104,7 +107,7 @@ X_RESOLUTION = 160
 Y_RESOLUTION = 128
 
 # UDP port to read spikes from
-UDP_PORT1 = 17887
+UDP_PORT1 = 17886
 UDP_PORT2 = UDP_PORT1 + 1
 
 # Setup pyNN simulation
@@ -124,7 +127,7 @@ breakout_pop = p.Population(b1.neurons(), b1, label="breakout1")
 b2 = b_out(x_factor=x_factor2, y_factor=y_factor2, bricking=0)
 breakout_pop2 = p.Population(b2.neurons(), b2, label="breakout2")
 ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
-# ex.activate_live_output_for(breakout_pop2, host="0.0.0.1", port=UDP_PORT2)
+# ex.activate_live_output_for(breakout_pop2, host="0.0.0.0", port=UDP_PORT2)
 
 
 # Connect key spike injector to breakout population
@@ -157,9 +160,13 @@ p.Projection(breakout_pop, test_pop, p.OneToOneConnector(), p.StaticSynapse(weig
 #     x_bits=np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))), y_bits=np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1))))
 
 running = True
+# t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1])
 t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
                                                      np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))),
                                                      np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))])
+# t = threading.Thread(target=thread_visualiser, args=[UDP_PORT2, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
+#                                                      np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1)))-1,
+#                                                      np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))-1])
 # r = threading.Thread(target=thread_visualiser, args=[UDP_PORT2])
 # result = [10 for i in range(2)]
 # x_res=160
@@ -201,12 +208,12 @@ for neuron in spikes_1:
         counter += 1
 # spikes_2 = receive_pop_2.get_data('spikes').segments[0].spiketrains
 # spikes_t = test_pop.get_data('spikes').segments[0].spiketrains
-Figure(
-    Panel(spikes_1, xlabel="Time (ms)", ylabel="nID", xticks=True)#,
-    # Panel(spikes_2, xlabel="Time (ms)", ylabel="nID", xticks=True)#,
-    # Panel(spikes_t, xlabel="Time (ms)", ylabel="nID", xticks=True)
-)
-plt.show()
+# Figure(
+#     Panel(spikes_1, xlabel="Time (ms)", ylabel="nID", xticks=True)#,
+#     # Panel(spikes_2, xlabel="Time (ms)", ylabel="nID", xticks=True)#,
+#     # Panel(spikes_t, xlabel="Time (ms)", ylabel="nID", xticks=True)
+# )
+# plt.show()
 
 scores = get_scores(breakout_pop=breakout_pop, simulator=simulator)
 scores2 = get_scores(breakout_pop=breakout_pop2, simulator=simulator)

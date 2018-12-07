@@ -200,6 +200,8 @@ class Visualiser(object):
                 # Create mask to select vision (rather than special event) packets
 
                 # Extract coordinates
+                'const uint32_t spike_key = ' \
+                    'key | (SPECIAL_EVENT_MAX + (i << (game_bits + 2)) + (j << 2) + (bricked<<1) + colour_bit);'
                 vision_payload = payload_value[
                                      vision_event_mask] - SpecialEvent.max
                 x = (vision_payload >> self.x_shift) & self.x_mask
@@ -220,6 +222,7 @@ class Visualiser(object):
                 try:
                     for x1, y1, c1, b1 in zip(x, y, c, b):
                         # self.image_data[:] = 0
+                        print "valid pixels = x:{}\ty:{}\tc:{}\tb:{}".format(x, y, c, b)
                         if b1 == 0:
                             self.image_data[y1, x1] = c1
                         elif b1 == 1:

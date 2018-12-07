@@ -153,11 +153,11 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
                                  self._colour_bits + 1))
         self._bricking = bricking
 
-        print "#width =", self._width
-        print "#width bits =", self._width_bits
-        print "#height =", self._height
-        print "#height bits =", self._height_bits
-        print "#no_neurons =", self._n_neurons
+        print "# width =", self._width
+        print "# width bits =", self._width_bits
+        print "# height =", self._height
+        print "# height bits =", self._height_bits
+        print "# neurons =", self._n_neurons
 
         #used to define size of recording region
         self._recording_size = int((simulation_duration_ms/10000.) * 4)
