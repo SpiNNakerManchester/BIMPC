@@ -113,7 +113,7 @@ typedef enum
 //! Should simulation run for ever? 0 if not
 static uint32_t infinite_run;
 
-static uint32_t _time;
+static uint32_t _time = 0;
 uint32_t pkt_count;
 
 int GAME_WIDTH = 160;
@@ -174,9 +174,6 @@ static uint32_t key;
 
 //! the number of timer ticks that this model should run for before exiting.
 uint32_t simulation_ticks = 0;
-
-//! How many ticks until next frame
-static uint32_t tick_in_frame = 0;
 
 uint32_t left_key_count = 0;
 uint32_t right_key_count = 0;
@@ -334,6 +331,7 @@ static void update_frame ()
     if (old_xbat != x_bat)
     {
         // Draw bat pixels
+        io_printf(IO_BUF, "oxb:%d, xb:%d, bl:%d\n", old_xbat, x_bat, bat_len);
         for (int i = x_bat; i < (x_bat + bat_len); i++)
         {
             set_pixel_col(i, GAME_HEIGHT-1, COLOUR_BAT, false);
@@ -604,6 +602,7 @@ void resume_callback() {
 
 void timer_callback(uint unused, uint dummy)
 {
+//    io_printf(IO_BUF, "time = %d", _time);
     use(unused);
     use(dummy);
     // If a fixed number of simulation ticks are specified and these have passed
@@ -616,6 +615,7 @@ void timer_callback(uint unused, uint dummy)
 
     if (!infinite_run && _time >= simulation_ticks)
     {
+        io_printf(IO_BUF, "if time = %d\n", _time);
         //spin1_pause();
         recording_finalise();
         // go into pause and resume state to avoid another tick
@@ -639,8 +639,8 @@ void timer_callback(uint unused, uint dummy)
     else
     {
         // Increment ticks in frame counter and if this has reached frame delay
-        tick_in_frame++;
-        if(tick_in_frame == FRAME_DELAY)
+        io_printf(IO_BUF, "else time = %d\n", _time);
+        if(_time % 20 == 0)
         {
             if (!current_number_of_bricks && bricking == 1)
             {
@@ -688,6 +688,7 @@ void timer_callback(uint unused, uint dummy)
             // collision detection relies on this
             if(_time == FRAME_DELAY)
             {
+                io_printf(IO_BUF, "sets the bat for the first time bl:%d, xb:%, gh:%d\n", bat_len, x_bat, GAME_HEIGHT);
                 // Draw bat
                 for (int i = x_bat; i < (x_bat + bat_len); i++)
                 {
@@ -695,8 +696,6 @@ void timer_callback(uint unused, uint dummy)
                 }
             }
 
-            // Reset ticks in frame and update frame
-            tick_in_frame = 0;
             update_frame();
             // Update recorded score every 1s
             if(score_change_count>=1000){
@@ -781,7 +780,6 @@ void c_main(void)
 
     init_frame();
     keystate = 0; // IDLE
-    tick_in_frame = 0;
     pkt_count = 0;
 
     // Set timer tick (in microseconds)
