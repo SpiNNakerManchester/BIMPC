@@ -58,31 +58,34 @@ class Visualiser(object):
         # Zero score
         self.score = 0
 
+        self.BRICK_WIDTH = x_res / 5
+        self.BRICK_HEIGHT = y_res / 8
+
         # Cache reference to key input connection
         self.key_input_connection = key_input_connection
 
         # Build masks
         self.x_mask = (1 << x_bits) - 1
         self.x_shift = self.colour_bits + y_bits
-        assert self.x_shift == 10, self.x_shift
+        # assert self.x_shift == 10, self.x_shift
 
         self.y_mask = (1 << y_bits) - 1
         self.y_shift = self.colour_bits
 
-        assert self.y_shift == 2, self.y_shift
+        # assert self.y_shift == 2, self.y_shift
 
         self.colour_mask = 1
         self.bricked_mask = 2
 
         self.value_mask = (1 << (x_bits + y_bits + self.colour_bits)) - 1
 
-        assert x_bits + y_bits + self.colour_bits == 18, x_bits + y_bits + self.colour_bits
+        # assert x_bits + y_bits + self.colour_bits == 18, x_bits + y_bits + self.colour_bits
 
-        assert self.value_mask == 0x3FFFF, self.value_mask
+        # assert self.value_mask == 0x3FFFF, self.value_mask
 
         self.y_res = y_res
         self.x_res = x_res
-        self.bat_width = 16
+        self.bat_width = 16 / (160 / self.x_res)
         self.fps = fps
         self.scale = scale
 
@@ -94,8 +97,8 @@ class Visualiser(object):
         print "y_mask", self.y_mask
         print "v_mask", self.value_mask
         print "bat width", self.bat_width
-        # print "Brick Width", self.BRICK_WIDTH
-        # print "Brick Height", self.BRICK_HEIGHT
+        print "Brick Width", self.BRICK_WIDTH
+        print "Brick Height", self.BRICK_HEIGHT
 
         # Open socket to receive datagrams
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

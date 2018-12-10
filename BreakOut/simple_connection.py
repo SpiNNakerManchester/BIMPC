@@ -124,8 +124,8 @@ y_factor2 = 16
 # breakout_pop2 = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor2), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor2), label="breakout2"))
 b1 = b_out(x_factor=x_factor1, y_factor=y_factor1, bricking=0)
 breakout_pop = p.Population(b1.neurons(), b1, label="breakout1")
-b2 = b_out(x_factor=x_factor2, y_factor=y_factor2, bricking=0)
-breakout_pop2 = p.Population(b2.neurons(), b2, label="breakout2")
+# b2 = b_out(x_factor=x_factor2, y_factor=y_factor2, bricking=0)
+# breakout_pop2 = p.Population(b2.neurons(), b2, label="breakout2")
 ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
 # ex.activate_live_output_for(breakout_pop2, host="0.0.0.0", port=UDP_PORT2)
 
@@ -134,20 +134,20 @@ ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
 rate = {'rate': 2}#, 'duration': 10000000}
 spike_input = p.Population(2, p.SpikeSourcePoisson(rate=2), label="input_connect")
 p.Projection(spike_input, breakout_pop, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
-spike_input2 = p.Population(2, p.SpikeSourcePoisson(rate=2), label="input_connect")
-p.Projection(spike_input2, breakout_pop2, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
+# spike_input2 = p.Population(2, p.SpikeSourcePoisson(rate=2), label="input_connect")
+# p.Projection(spike_input2, breakout_pop2, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
 # key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["input_connect"])
 
 weight = 0.1
 [Connections_on, Connections_off]=subsample_connection(X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1, 1, 1, weight, row_col_to_input_breakout)
 receive_pop_size1 = (160/x_factor1)*(128/y_factor1)
-receive_pop_size2 = (160/x_factor2)*(128/y_factor2)
+# receive_pop_size2 = (160/x_factor2)*(128/y_factor2)
 receive_pop_1 = p.Population(receive_pop_size1, p.IF_cond_exp(), label="receive_pop")
-receive_pop_2 = p.Population(receive_pop_size2, p.IF_cond_exp(), label="receive_pop")
+# receive_pop_2 = p.Population(receive_pop_size2, p.IF_cond_exp(), label="receive_pop")
 p.Projection(breakout_pop,receive_pop_1,p.FromListConnector(Connections_on))#, p.StaticSynapse(weight=weight))
-p.Projection(breakout_pop2,receive_pop_2,p.OneToOneConnector(), p.StaticSynapse(weight=weight))
+# p.Projection(breakout_pop2,receive_pop_2,p.OneToOneConnector(), p.StaticSynapse(weight=weight))
 receive_pop_1.record('spikes')#["spikes"])
-receive_pop_2.record('spikes')#["spikes"])
+# receive_pop_2.record('spikes')#["spikes"])
 
 test_pop = p.Population(b1.neurons(), p.IF_cond_exp(), label="test_pop")
 p.Projection(breakout_pop, test_pop, p.OneToOneConnector(), p.StaticSynapse(weight=weight))
@@ -161,10 +161,9 @@ p.Projection(breakout_pop, test_pop, p.OneToOneConnector(), p.StaticSynapse(weig
 
 running = True
 # t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1])
-# t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
-#                                                      np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))),
-#                                                      np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))])
-t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION, Y_RESOLUTION])
+t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
+                                                     np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))),
+                                                     np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))])
 # t = threading.Thread(target=thread_visualiser, args=[UDP_PORT2, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
 #                                                      np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1)))-1,
 #                                                      np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))-1])
@@ -217,11 +216,11 @@ for neuron in spikes_1:
 # plt.show()
 
 scores = get_scores(breakout_pop=breakout_pop, simulator=simulator)
-scores2 = get_scores(breakout_pop=breakout_pop2, simulator=simulator)
+# scores2 = get_scores(breakout_pop=breakout_pop2, simulator=simulator)
 
 # End simulation
 p.end()
 
 print "1", scores
-print "2", scores2
+# print "2", scores2
 
