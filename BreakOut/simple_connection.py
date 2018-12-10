@@ -25,7 +25,7 @@ from spynnaker.pyNN.models.utility_models.spike_injector import \
 from spinn_breakout.visualiser.visualiser import Visualiser
 
 
-def thread_visualiser(UDP_PORT, xr, yr, xb, yb):
+def thread_visualiser(UDP_PORT, xr, yr, xb=8, yb=8):
     id = UDP_PORT - UDP_PORT1
     print "threadin ", running, id
     # time.sleep(5)
@@ -161,9 +161,10 @@ p.Projection(breakout_pop, test_pop, p.OneToOneConnector(), p.StaticSynapse(weig
 
 running = True
 # t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1])
-t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
-                                                     np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))),
-                                                     np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))])
+# t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
+#                                                      np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))),
+#                                                      np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))])
+t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION, Y_RESOLUTION])
 # t = threading.Thread(target=thread_visualiser, args=[UDP_PORT2, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
 #                                                      np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1)))-1,
 #                                                      np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))-1])
