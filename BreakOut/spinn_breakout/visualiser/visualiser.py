@@ -48,7 +48,7 @@ class SpecialEvent(enum.IntEnum):
 # ----------------------------------------------------------------------------
 class Visualiser(object):
     # How many bits are used to represent colour and brick
-    colour_bits = 1
+    colour_bits = 2
 
     def __init__(self, udp_port, key_input_connection=None, scale=4,
                  x_res=160, y_res=128, x_bits=8, y_bits=8, fps=60):
@@ -66,7 +66,7 @@ class Visualiser(object):
 
         # Build masks
         self.x_mask = (1 << x_bits) - 1
-        self.x_shift = self.colour_bits + y_bits
+        self.x_shift = self.colour_bits + y_bits + 1
         # assert self.x_shift == 10, self.x_shift
 
         self.y_mask = (1 << y_bits) - 1
@@ -208,7 +208,7 @@ class Visualiser(object):
                 y = (vision_payload >> self.y_shift) & self.y_mask
 
                 c = (vision_payload & self.colour_mask)
-                # b = (vision_payload & self.bricked_mask) >> 1
+                b = (vision_payload & self.bricked_mask) >> 1
 
                 '''if y.any() == self.y_res-1:
                     if c[np.where(y==self.y_res-1)].any()==1:
