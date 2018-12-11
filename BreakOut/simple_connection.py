@@ -114,15 +114,15 @@ UDP_PORT2 = UDP_PORT1 + 1
 p.setup(timestep=1.0)
 p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
 
-x_factor1 = 8
-y_factor1 = 8
+x_factor1 = 2
+y_factor1 = 2
 x_factor2 = 16
 y_factor2 = 16
 
 # Create breakout population and activate live output for it
 # breakout_pop = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor1), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor1), label="breakout1"))
 # breakout_pop2 = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor2), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor2), label="breakout2"))
-b1 = b_out(x_factor=x_factor1, y_factor=y_factor1, bricking=0)
+b1 = b_out(x_factor=x_factor1, y_factor=y_factor1, bricking=1)
 breakout_pop = p.Population(b1.neurons(), b1, label="breakout1")
 # b2 = b_out(x_factor=x_factor2, y_factor=y_factor2, bricking=0)
 # breakout_pop2 = p.Population(b2.neurons(), b2, label="breakout2")
@@ -181,7 +181,7 @@ t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_f
 print "reached here 1"
 t.start()
 # r.start()
-runtime = 10000
+runtime = 100000
 
 simulator = get_simulator()
 

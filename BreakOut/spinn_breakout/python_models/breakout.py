@@ -150,7 +150,7 @@ class Breakout(ApplicationVertex, AbstractGeneratesDataSpecification,
         self._height_bits = numpy.uint32(numpy.ceil(numpy.log2(self._height)))
 
         self._n_neurons = (1 << (self._width_bits + self._height_bits +
-                                 self._colour_bits + 1))
+                                 self._colour_bits))
         self._bricking = bricking
 
         print "# width =", self._width

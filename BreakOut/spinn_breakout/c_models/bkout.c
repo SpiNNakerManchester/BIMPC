@@ -53,6 +53,7 @@
 #define BRICKS_PER_ROW  5
 #define BRICKS_PER_COLUMN  2
 
+#define MAX_BALL_SPEED 2
 
 // Ball outof play time (frames)
 #define OUT_OF_PLAY 100
@@ -118,7 +119,7 @@ uint32_t pkt_count;
 
 int GAME_WIDTH = 160;
 int GAME_HEIGHT = 128;
-int game_bits = 8;
+int y_bits = 8;
 
 // initial ball coordinates in fixed-point
 static int x; //= (GAME_WIDTH / 4) * FACT;
@@ -142,8 +143,8 @@ int bricking = 2;
 int FACT = 16;
 
 // initial ball velocity in fixed-point
-int u = 16;// * FACT;
-int v = -16;// * FACT;
+int u = MAX_BALL_SPEED;// * FACT;
+int v = -MAX_BALL_SPEED;// * FACT;
 
 // bat LHS x position
 int x_bat = 32;
@@ -226,9 +227,15 @@ void add_event(int i, int j, colour_t col, bool bricked)
 
     i = i / x_spike_factor;
     j = j / y_spike_factor;
-    io_printf(IO_BUF, "sending fixed payload back i:%d, j:%d, c:%d, b:%d\n", i, j, colour_bit, bricked);
+//    io_printf(IO_BUF, "sending fixed payload back i:%d, j:%d, c:%d, b:%d\n", i, j, colour_bit, bricked);
+//    io_printf(IO_BUF, "fixed payload: full:%d, nokey:%d, bits:%d\n",
+//        key | (SPECIAL_EVENT_MAX + (i << (y_bits + 2)) + (j << 2) + (bricked<<1) + colour_bit),
+//        (SPECIAL_EVENT_MAX + (i << (y_bits + 2)) + (j << 2) + (bricked<<1) + colour_bit),
+//        (i << (y_bits + 2)) + (j << 2) + (bricked<<1) + colour_bit);
 
-    const uint32_t spike_key = key | (SPECIAL_EVENT_MAX + (i << (game_bits + 2)) + (j << 2) + (bricked<<1) + colour_bit);
+
+//    const uint32_t spike_key = key | (SPECIAL_EVENT_MAX + (i << (y_bits + 2)) + (j << 2) + (bricked<<1) + colour_bit);
+    const uint32_t spike_key = key | (SPECIAL_EVENT_MAX + (i << (y_bits + colour_bit)) + (j << colour_bit) + colour_bit);
 
     spin1_send_mc_packet(spike_key, 0, NO_PAYLOAD);
 }
@@ -242,17 +249,17 @@ static inline colour_t get_pixel_col (int i, int j)
 // inserts pixel colour within word
 static inline void set_pixel_col (int i, int j, colour_t col, bool bricked)
 {
-    io_printf(IO_BUF, "setting (%d,%d) to %d, b-%d, g%d, u%d, v%d\n", i, j, col, bricked, game_bits, u, v);
+    io_printf(IO_BUF, "setting (%d,%d) to %d, b-%d, g%d, u%d, v%d\n", i, j, col, bricked, y_bits, u, v);
     if (bricked) {
         add_event((brick_corner_x * BRICK_WIDTH),
                       (brick_corner_y* BRICK_HEIGHT + BRICK_LAYER_OFFSET),
                       COLOUR_BACKGROUND, bricked);
     }
-    else if (col != get_pixel_col(i, j))
-    {
-        frame_buff[i/4][j] = col;
-        add_event (i, j, col, bricked);
-    }
+//    else if (col != get_pixel_col(i, j))
+//    {
+    frame_buff[i/4][j] = col;
+    add_event (i, j, col, bricked);
+//    }
 }
 
 static inline bool is_a_brick(int x, int y) // x - width, y- height?
@@ -437,32 +444,32 @@ static void update_frame ()
             add_score_up_event();
         }
 
-        if (get_pixel_col(x, y) == COLOUR_BAT)
+        if (get_pixel_col(x, y-1) == COLOUR_BAT)
         {
-            io_printf(IO_BUF, "got in get pixel colour x=%d, y=%d, u=%d, v=%d\n", x, y, u, v);
+            io_printf(IO_BUF, "got in hitting bat x=%d, y=%d, u=%d, v=%d\n", x, y, u, v);
             bool broke = false;
             if (x < (x_bat + bat_len/4))
             {
                 log_info("BAT 1");
-                u = -16 / x_factor;
+                u = -MAX_BALL_SPEED / x_factor;
                 v = -v;
             }
             else if (x < (x_bat + (bat_len/2)))
             {
                 log_info("BAT 2");
-                u = -8 / x_factor;
+                u = -(MAX_BALL_SPEED / 2) / x_factor;
                 v = -v;
             }
             else if (x < (x_bat + ((3 * bat_len) / 4)))
             {
                 log_info("BAT 3");
-                u = 8 / x_factor;
+                u = (MAX_BALL_SPEED / 2) / x_factor;
                 v = -v;
             }
             else if (x < (x_bat + bat_len))
             {
                 log_info("BAT 4");
-                u = 16 / x_factor;
+                u = MAX_BALL_SPEED / x_factor;
                 v = -v;
             }
             else
@@ -472,11 +479,11 @@ static void update_frame ()
                 //        u = FACT;
             }
 
-            if (broke == false)
-            {
-              v = -16 / x_factor;
-              y -= 16 / y_factor;
-            }
+//            if (broke == false)
+//            {
+//              v = -MAX_BALL_SPEED / x_factor;
+//              y -= 16 / y_factor;
+//            }
             // Increase score
             if (!bricking){
                 add_score_up_event();
@@ -488,7 +495,7 @@ static void update_frame ()
         if (y + v > GAME_HEIGHT)
         {
             io_printf(IO_BUF, "got in lost ball x=%d, y=%d, u=%d, v=%d\n", x, y, u, v);
-            v = -16 / x_factor;
+            v = -MAX_BALL_SPEED / x_factor;
             y = GAME_HEIGHT / 8;
 
             if(mars_kiss32() > 0xFFFF){
@@ -589,8 +596,8 @@ static bool initialize(uint32_t *timer_period)
     // rescale variables
     FACT = FACT / y_factor;
 
-    u = 16 / x_factor;
-    v = -16 / y_factor;
+    u = MAX_BALL_SPEED / x_factor;
+    v = -MAX_BALL_SPEED / y_factor;
 
     io_printf(IO_BUF, "game w = %d, game h = %d, x=%d, y=%d, u=%d, v=%d, xf=%d, yf=%d\n", GAME_WIDTH, GAME_HEIGHT, x, y, u, v, x_factor, y_factor);
 
@@ -606,11 +613,7 @@ static bool initialize(uint32_t *timer_period)
 
     io_printf(IO_BUF, "x:%d, y:%d, bw:%d, bh:%d, blo:%d, blh:%d, xb:%d, bl:%d, u:%d, v:%d\n", x, y, BRICK_WIDTH, BRICK_HEIGHT, BRICK_LAYER_OFFSET, BRICK_LAYER_HEIGHT, x_bat, bat_len, u, v);
 
-//    int *game_bits_pointer;
-//    game_bits_pointer = &game_bits;
-//    *game_bits_pointer = ceil(log2(GAME_WIDTH));
-//    game_bits = ceil(log2(GAME_WIDTH));
-    game_bits = ceil(log2(GAME_WIDTH / x_spike_factor));
+    y_bits = ceil(log2(GAME_HEIGHT / y_spike_factor));
 
     // Setup recording
     uint32_t recording_flags = 0;
@@ -683,7 +686,7 @@ void timer_callback(uint unused, uint dummy)
                 current_number_of_bricks = BRICKS_PER_COLUMN * BRICKS_PER_ROW;
                 //          print_bricks = true;
                 //todo check the config of this
-                v = -16 / x_factor;
+                v = -MAX_BALL_SPEED / x_factor;
                 //todo make this random in some respect
                 y = GAME_HEIGHT  /  8;
 
