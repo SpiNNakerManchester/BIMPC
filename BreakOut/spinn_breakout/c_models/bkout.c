@@ -19,6 +19,7 @@
 // Front end common includes
 #include <data_specification.h>
 #include <simulation.h>
+#include "random.h"
 
 #include <recording.h>
 
@@ -162,6 +163,8 @@ int BRICK_HEIGHT = 6;
 int BRICK_LAYER_OFFSET = 30;
 int BRICK_LAYER_HEIGHT = 12;
 
+mars_kiss64_seed_t kiss_seed;
+
 // frame buffer: 160 x 128 x 4 bits: [hard/soft, R, G, B]
 static int frame_buff[GAME_WIDTH_MAX/4][GAME_HEIGHT_MAX];
 
@@ -210,7 +213,7 @@ static inline void add_score_down_event()
 void add_event(int i, int j, colour_t col, bool bricked)
 {
     const uint32_t colour_bit = (col == COLOUR_BACKGROUND) ? 0 : 1;
-    io_printf(IO_BUF, "sending payload back i:%d, j:%d, c:%d, b:%d\n", i, j, colour_bit, bricked);
+//    io_printf(IO_BUF, "sending payload back i:%d, j:%d, c:%d, b:%d\n", i, j, colour_bit, bricked);
 
 //    int row_bits = (np.ceil(np.log2(x_res)));
 //    int idx = 0;
@@ -249,7 +252,7 @@ static inline colour_t get_pixel_col (int i, int j)
 // inserts pixel colour within word
 static inline void set_pixel_col (int i, int j, colour_t col, bool bricked)
 {
-    io_printf(IO_BUF, "setting (%d,%d) to %d, b-%d, g%d, u%d, v%d\n", i, j, col, bricked, y_bits, u, v);
+//    io_printf(IO_BUF, "setting (%d,%d) to %d, b-%d, g%d, u%d, v%d\n", i, j, col, bricked, y_bits, u, v);
     if (bricked) {
         add_event((brick_corner_x * BRICK_WIDTH),
                       (brick_corner_y* BRICK_HEIGHT + BRICK_LAYER_OFFSET),
@@ -337,7 +340,7 @@ static void update_frame ()
         move_direction = 2;
         //    io_printf(IO_BUF, "didn't move!\n");
     }
-    io_printf(IO_BUF, "left = %d, right = %d\n", left_key_count, right_key_count);
+//    io_printf(IO_BUF, "left = %d, right = %d\n", left_key_count, right_key_count);
 
 
     // Update bat and clamp
@@ -358,7 +361,7 @@ static void update_frame ()
     if (old_xbat != x_bat)
     {
         // Draw bat pixels
-        io_printf(IO_BUF, "oxb:%d, xb:%d, bl:%d\n", old_xbat, x_bat, bat_len);
+//        io_printf(IO_BUF, "oxb:%d, xb:%d, bl:%d\n", old_xbat, x_bat, bat_len);
         for (int i = x_bat; i < (x_bat + bat_len); i++)
         {
             set_pixel_col(i, GAME_HEIGHT-1, COLOUR_BAT, false);
@@ -383,7 +386,7 @@ static void update_frame ()
     if (out_of_play == 0)
     {
         // clear pixel to background
-        io_printf(IO_BUF, "setting ball to background x=%d, y=%d, u=%d, v=%d\n", x, y, u, v);
+//        io_printf(IO_BUF, "setting ball to background x=%d, y=%d, u=%d, v=%d\n", x, y, u, v);
         set_pixel_col(x, y, COLOUR_BACKGROUND, false);
 
         // move ball in x and bounce off sides
@@ -412,7 +415,7 @@ static void update_frame ()
             v = -v;
         }
 
-        io_printf(IO_BUF, "about to is a brick x=%d, y=%d, u=%d, v=%d\n", x, y, u, v);
+//        io_printf(IO_BUF, "about to is a brick x=%d, y=%d, u=%d, v=%d\n", x, y, u, v);
         //detect collision
         // if we hit something hard! -- paddle or brick
         bool bricked = is_a_brick(x, y);
@@ -498,7 +501,7 @@ static void update_frame ()
             v = -MAX_BALL_SPEED / x_factor;
             y = GAME_HEIGHT / 8;
 
-            if(mars_kiss32() > 0xFFFF){
+            if(mars_kiss64_seed(kiss_seed) > 0x7FFFFFFF){
                 //        log_info("MARS 1");
                 u = -u;
             }
@@ -507,7 +510,7 @@ static void update_frame ()
             x = GAME_WIDTH;
 
             while (x >= GAME_WIDTH){
-                x = (int)(mars_kiss32() / x_ratio);
+                x = (int)((mars_kiss64_seed(kiss_seed) >> 32) / x_ratio);
             }
             //      x = (int)(mars_kiss32()%GAME_WIDTH);
             //      log_info("random x = %d", x);
@@ -528,7 +531,7 @@ static void update_frame ()
         // draw ball
         else
         {
-            io_printf(IO_BUF, "else x=%d, y=%d, u=%d, v=%d\n", x, y, u, v);
+//            io_printf(IO_BUF, "else x=%d, y=%d, u=%d, v=%d\n", x, y, u, v);
             set_pixel_col(x, y, COLOUR_BALL, false);
         }
     }
@@ -578,6 +581,13 @@ static bool initialize(uint32_t *timer_period)
 //    x_factor = param_region[0];
 //    y_factor = param_region[1];
     bricking = param_region[2];
+    kiss_seed[0] = param_region[3];
+    kiss_seed[1] = param_region[4];
+    kiss_seed[2] = param_region[5];
+    kiss_seed[3] = param_region[6];
+    io_printf(IO_BUF, "x_factor = %d, y_factor = %d, bricking = %d, seed = [%d, %d, %d, %d]/[%u, %u, %u, %u]\n",
+                x_spike_factor, y_spike_factor, bricking, kiss_seed[0], kiss_seed[1], kiss_seed[2], kiss_seed[3],
+                kiss_seed[0], kiss_seed[1], kiss_seed[2], kiss_seed[3]);
 
     if(bricking != 0 && bricking != 1){
         io_printf(IO_BUF, "\nbricking is broke af\n");
@@ -690,7 +700,7 @@ void timer_callback(uint unused, uint dummy)
                 //todo make this random in some respect
                 y = GAME_HEIGHT  /  8;
 
-                if(mars_kiss32() > 0xFFFF){
+                if(mars_kiss64_seed(kiss_seed) > 0x7FFFFFFF){
                     //        log_info("MARS 2");
                     u = -u;
                 }
@@ -700,7 +710,7 @@ void timer_callback(uint unused, uint dummy)
 
                 while (x >= GAME_WIDTH)
                 {
-                    x = (int)(mars_kiss32() / x_ratio);
+                    x = (int)((mars_kiss64_seed(kiss_seed) >> 32) / x_ratio);
                 }
             }
 
@@ -720,7 +730,7 @@ void timer_callback(uint unused, uint dummy)
             // collision detection relies on this
             if(_time == FRAME_DELAY)
             {
-                io_printf(IO_BUF, "sets the bat for the first time bl:%d, xb:%, gh:%d\n", bat_len, x_bat, GAME_HEIGHT);
+//                io_printf(IO_BUF, "sets the bat for the first time bl:%d, xb:%, gh:%d\n", bat_len, x_bat, GAME_HEIGHT);
                 // Draw bat
                 for (int i = x_bat; i < (x_bat + bat_len); i++)
                 {

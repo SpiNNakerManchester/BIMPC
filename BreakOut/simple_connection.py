@@ -25,7 +25,7 @@ from spynnaker.pyNN.models.utility_models.spike_injector import \
 from spinn_breakout.visualiser.visualiser import Visualiser
 
 
-def thread_visualiser(UDP_PORT, xr, yr, xb=8, yb=8):
+def thread_visualiser(UDP_PORT, xr, yr, xb=8, yb=8, key_conn=None):
     id = UDP_PORT - UDP_PORT1
     print "threadin ", running, id
     # time.sleep(5)
@@ -33,7 +33,7 @@ def thread_visualiser(UDP_PORT, xr, yr, xb=8, yb=8):
     # yb = np.uint32(np.ceil(np.log2(Y_RESOLUTION / y_factor1)))
     Figure
     visualiser = Visualiser(
-        UDP_PORT, None,# id,
+        UDP_PORT, key_conn,# id,
         x_res=xr, y_res=yr,
         x_bits=xb, y_bits=yb)
     print "threadin2 ", running, id
@@ -114,15 +114,15 @@ UDP_PORT2 = UDP_PORT1 + 1
 p.setup(timestep=1.0)
 p.set_number_of_neurons_per_core(p.IF_cond_exp, 100)
 
-x_factor1 = 2
-y_factor1 = 2
+x_factor1 = 8
+y_factor1 = 8
 x_factor2 = 16
 y_factor2 = 16
 
 # Create breakout population and activate live output for it
 # breakout_pop = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor1), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor1), label="breakout1"))
 # breakout_pop2 = p.Population(1, p.Breakout(WIDTH_PIXELS=(X_RESOLUTION/x_factor2), HEIGHT_PIXELS=(Y_RESOLUTION/y_factor2), label="breakout2"))
-b1 = b_out(x_factor=x_factor1, y_factor=y_factor1, bricking=1)
+b1 = b_out(x_factor=x_factor1, y_factor=y_factor1, bricking=0)
 breakout_pop = p.Population(b1.neurons(), b1, label="breakout1")
 # b2 = b_out(x_factor=x_factor2, y_factor=y_factor2, bricking=0)
 # breakout_pop2 = p.Population(b2.neurons(), b2, label="breakout2")
@@ -131,9 +131,18 @@ ex.activate_live_output_for(breakout_pop, host="0.0.0.0", port=UDP_PORT1)
 
 
 # Connect key spike injector to breakout population
-rate = {'rate': 2}#, 'duration': 10000000}
-spike_input = p.Population(2, p.SpikeSourcePoisson(rate=2), label="input_connect")
-p.Projection(spike_input, breakout_pop, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
+# rate = {'rate': 2}#, 'duration': 10000000}
+# spike_input = p.Population(2, p.SpikeSourcePoisson(rate=2), label="input_connect")
+# p.Projection(spike_input, breakout_pop, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
+# key_input_connection = None
+
+# Create spike injector to inject keyboard input into simulation
+key_input = p.Population(2, SpikeInjector, label="key_input")
+key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["key_input"])
+
+# Connect key spike injector to breakout population
+p.Projection(key_input, breakout_pop, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
+
 # spike_input2 = p.Population(2, p.SpikeSourcePoisson(rate=2), label="input_connect")
 # p.Projection(spike_input2, breakout_pop2, p.AllToAllConnector(), p.StaticSynapse(weight=0.1))
 # key_input_connection = SpynnakerLiveSpikesConnection(send_labels=["input_connect"])
@@ -163,7 +172,8 @@ running = True
 # t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1])
 t = threading.Thread(target=thread_visualiser, args=[UDP_PORT1, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
                                                      np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1))),
-                                                     np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))])
+                                                     np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1))),
+                                                     key_input_connection])
 # t = threading.Thread(target=thread_visualiser, args=[UDP_PORT2, X_RESOLUTION/x_factor1, Y_RESOLUTION/y_factor1,
 #                                                      np.uint32(np.ceil(np.log2(X_RESOLUTION/x_factor1)))-1,
 #                                                      np.uint32(np.ceil(np.log2(Y_RESOLUTION/y_factor1)))-1])
